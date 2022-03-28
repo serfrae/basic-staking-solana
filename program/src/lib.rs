@@ -17,8 +17,8 @@ use spl_associated_token_account;
 use spl_token;
 
 const VAULT_SEED: &[u8; 8] = b"___vault";
-const ADMIN_PK: &str = "9urEjHV3Wm4Pv4Da8uuufRoAuLT9FNAm97wHy3qF9pYy";
-const MINT: &str = "9gw5yXb2XCkqTTywcqYj9CE3LBuEeWCNDtRqbaJ4Xc1W";
+const ADMIN_PK: &str = "a7rsXXy1FQYGHex2hzYsVFMLf2ZWLdQQxN1qWA6Ah46";
+const MINT: &str = "SCYfrGCw8aDiqdgcpdGjV6jp4UVVQLuphxTDLNWu36f";
 
 // Declare and export the program's entrypoint
 entrypoint!(process_instruction);
