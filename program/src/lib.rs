@@ -4,7 +4,7 @@ use solana_program::program::{invoke, invoke_signed};
 use solana_program::{
     self,
     account_info::{next_account_info, AccountInfo},
-    entrypoint,
+    declare_id, entrypoint,
     entrypoint::ProgramResult,
     msg,
     program_error::ProgramError,
@@ -19,6 +19,8 @@ use spl_token;
 const VAULT_SEED: &[u8; 8] = b"___vault";
 const ADMIN_PK: &str = "a7rsXXy1FQYGHex2hzYsVFMLf2ZWLdQQxN1qWA6Ah46";
 const MINT: &str = "SCYfrGCw8aDiqdgcpdGjV6jp4UVVQLuphxTDLNWu36f";
+
+declare_id!("SCYV7PXsvGy4PKZLrZCZPaVDccNSNEBKCdJ6etycwEF");
 
 // Declare and export the program's entrypoint
 entrypoint!(process_instruction);
