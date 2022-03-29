@@ -89,11 +89,11 @@ pub fn process_instruction(
         StakeInstruction::Withdraw { amount } => {
             let admin_info = next_account_info(accounts_iter)?;
             let admin_token_account_info = next_account_info(accounts_iter)?;
-            let vault_token_account_info = next_account_info(accounts_iter)?;
+
             let vault_info = next_account_info(accounts_iter)?;
+            let vault_token_account_info = next_account_info(accounts_iter)?;
 
             let token_info = next_account_info(accounts_iter)?;
-
             let mint_info = next_account_info(accounts_iter)?;
 
             if *admin_info.key != admin || !admin_info.is_signer {
@@ -155,14 +155,13 @@ pub fn process_instruction(
         }
         StakeInstruction::Unstake => {
             let staker = next_account_info(accounts_iter)?;
-
-            let token_info = next_account_info(accounts_iter)?;
-
             let stake_info = next_account_info(accounts_iter)?;
-            let vault_info = next_account_info(accounts_iter)?;
             let staker_token_account_info = next_account_info(accounts_iter)?;
+
+            let vault_info = next_account_info(accounts_iter)?;
             let vault_token_account_info = next_account_info(accounts_iter)?;
 
+            let token_info = next_account_info(accounts_iter)?;
             let mint_info = next_account_info(accounts_iter)?;
 
             let clock = Clock::get()?;
@@ -251,6 +250,7 @@ pub fn process_instruction(
             let mut reward = (clock.unix_timestamp as u64 - stake_data.timestamp)
                 / vault_data.reward_period
                 * (stake_data.staked_amount * vault_data.rate);
+
             let total_withdrawal =
                 if clock.unix_timestamp as u64 - stake_data.timestamp < vault_data.min_period {
                     (stake_data.staked_amount + reward).checked_div(20).unwrap()
@@ -295,19 +295,18 @@ pub fn process_instruction(
 
         StakeInstruction::Stake { amount } => {
             let staker = next_account_info(accounts_iter)?;
+            let staker_info = next_account_info(accounts_iter)?;
             let staker_token_account_info = next_account_info(accounts_iter)?;
-            let mint_info = next_account_info(accounts_iter)?;
 
             let vault_info = next_account_info(accounts_iter)?;
             let vault_token_account_info = next_account_info(accounts_iter)?;
 
-            let source = next_account_info(accounts_iter)?;
-            let destination = next_account_info(accounts_iter)?;
+            let mint_info = next_account_info(accounts_iter)?;
 
             let token_program = next_account_info(accounts_iter)?;
+            let token_assoc = next_account_info(accounts_iter)?;
             let sys_info = next_account_info(accounts_iter)?;
             let rent_info = next_account_info(accounts_iter)?;
-            let token_assoc = next_account_info(accounts_iter)?;
 
             let stake_data_info = next_account_info(accounts_iter)?;
 
@@ -338,7 +337,7 @@ pub fn process_instruction(
                 return Err(ProgramError::Custom(0x10));
             }
 
-            let size: u64 = 8 + 32 + 32 + 8 + 1 + 8;
+            let size: u64 = 8 + 32 + 32 + 1 + 8 + 8 + 8 + 8;
             if stake_data_info.owner != program_id {
                 let required_lamports = rent
                     .minimum_balance(size as usize)
@@ -429,7 +428,7 @@ pub fn process_instruction(
                 return Err(ProgramError::Custom(0x09));
             }
 
-            if destination.owner != token_program.key {
+            if vault_token_account_info.owner != token_program.key {
                 invoke(
                     &spl_associated_token_account::create_associated_token_account(
                         staker.key,
@@ -438,7 +437,7 @@ pub fn process_instruction(
                     ),
                     &[
                         staker.clone(),
-                        destination.clone(),
+                        vault_token_account_info.clone(),
                         vault_info.clone(),
                         mint_info.clone(),
                         sys_info.clone(),
@@ -451,15 +450,15 @@ pub fn process_instruction(
             invoke(
                 &spl_token::instruction::transfer(
                     token_program.key,
-                    source.key,
-                    destination.key,
+                    staker_token_account_info.key,
+                    vault_token_account_info.key,
                     staker.key,
                     &[],
-                    1,
+                    amount,
                 )?,
                 &[
-                    source.clone(),
-                    destination.clone(),
+                    staker_token_account_info.clone(),
+                    vault_token_account_info.clone(),
                     staker.clone(),
                     token_program.clone(),
                 ],
@@ -474,8 +473,9 @@ pub fn process_instruction(
             early_withdrawal_fee,
         } => {
             let payer = next_account_info(accounts_iter)?;
-            let system_program = next_account_info(accounts_iter)?;
             let pda = next_account_info(accounts_iter)?;
+
+            let system_program = next_account_info(accounts_iter)?;
             let rent_info = next_account_info(accounts_iter)?;
 
             let rent = &Rent::from_account_info(rent_info)?;
@@ -489,7 +489,7 @@ pub fn process_instruction(
             }
 
             if pda.owner != program_id {
-                let size = 8 + 8 + 8 + 8;
+                let size = 32 + 8 + 8 + 8 + 8 + 8 + 8;
 
                 let required_lamports = rent
                     .minimum_balance(size as usize)

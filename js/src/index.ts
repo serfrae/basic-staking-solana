@@ -10,6 +10,8 @@ import {
 import BN from "bn.js";
 import { deserializeUnchecked, Schema, serialize } from "borsh";
 
+//---------------Pubkeys + Seeds-----------------------------------------======
+
 export const VAULT_SEED = Buffer.from("___vault");
 
 export const ASSOCIATED_TOKEN_PROGRAM_ID: PublicKey = new PublicKey(
@@ -32,7 +34,35 @@ export const SCY_STAKING_VAULT_TOKEN_ADDRESS: PublicKey = new PublicKey(
 	findAssociatedTokenAddress(SCY_STAKING_VAULT_INFO, SCY_MINT)
 );
 
+export const RENT_SYSVAR: PublicKey = new PublicKey(
+	"SysvarRent111111111111111111111111111111111"
+);
 
+
+//------------------------Structs----------------------------------------------
+export type StakeData = {
+	timestamp: Numberu64,
+	staker: PublicKey,
+	mint: PublicKey,
+	active: boolean,
+	withdraw: Numberu64,
+	harvested: Numberu64,
+	stakedAmount: Numberu64,
+	maxReward: Numberu64,
+}
+
+export type VaultData = {
+	mint: PublicKey,
+	minPeriod: Numberu64,
+	rewardPeriod: Numberu64,
+	rate: Numberu64,
+	earlyWithdrawalFee: Numberu64,
+	totalObligations: Numberu64,
+	totalStaked: Numberu64,
+}
+
+
+//------------------------Instructions-----------------------------------------
 export class createStakeInstruction {
 	amount: Numberu64;
 	static schema: Schema = new Map([[createStakeInstruction, {kind: "struct", fields: [["amount", "u64"]]},],]);
@@ -180,9 +210,7 @@ export class createUnstakeInstruction {
 	}
 }
 
-	
-
-
+//-----------------------u64 Typscript------------------------------------------
 export class Numberu64 extends BN {
   /**
    * Convert to Buffer representation
@@ -215,6 +243,7 @@ export class Numberu64 extends BN {
   }
 }
 
+//------------------------------------------------------------------------------
 export const signAndSendTransactionInstructions = async (
   // sign and send transaction
   connection: Connection,
