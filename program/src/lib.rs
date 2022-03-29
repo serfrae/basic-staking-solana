@@ -18,7 +18,7 @@ use spl_token;
 
 const VAULT_SEED: &[u8; 8] = b"___vault";
 const ADMIN_PK: &str = "a7rsXXy1FQYGHex2hzYsVFMLf2ZWLdQQxN1qWA6Ah46";
-const MINT: &str = "SCYfrGCw8aDiqdgcpdGjV6jp4UVVQLuphxTDLNWu36f";
+const MINT: &str = "SCYVn1w92poF5VaLf2myVBbTvBf1M8MLqJwpS64Gb9b";
 
 declare_id!("SCYV7PXsvGy4PKZLrZCZPaVDccNSNEBKCdJ6etycwEF");
 
@@ -422,7 +422,7 @@ pub fn process_instruction(
             }
 
             if &spl_associated_token_account::get_associated_token_address(&vault, mint_info.key)
-                != destination.key
+                != vault_token_account_info.key
             {
                 //msg!("Wrong destination");
                 return Err(ProgramError::Custom(0x09));

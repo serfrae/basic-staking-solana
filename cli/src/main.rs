@@ -19,7 +19,7 @@ use spl_token;
 
 const PROGRAM_ID: &str = "SCYV7PXsvGy4PKZLrZCZPaVDccNSNEBKCdJ6etycwEF";
 const VAULT_SEED: &[u8; 8] = b"___vault";
-const MINT: &str = "SCYfrGCw8aDiqdgcpdGjV6jp4UVVQLuphxTDLNWu36f";
+const MINT: &str = "SCYVn1w92poF5VaLf2myVBbTvBf1M8MLqJwpS64Gb9b";
 
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, BorshSchema)]
 enum StakeInstruction {
@@ -84,6 +84,13 @@ fn main() {
                         .takes_value(true),
                 )
                 .arg(
+                    Arg::with_name("mint")
+                        .short("m")
+                        .long("mint")
+                        .required(true)
+                        .takes_value(true),
+                )
+                .arg(
                     Arg::with_name("min_period")
                         .short("m")
                         .long("min_period")
@@ -100,14 +107,14 @@ fn main() {
                 .arg(
                     Arg::with_name("rate")
                         .short("r")
-                        .long("bonus_percentage")
+                        .long("rate")
                         .required(true)
                         .takes_value(true),
                 )
                 .arg(
                     Arg::with_name("early_withdrawal_fee")
                         .short("w")
-                        .long("bonus_period")
+                        .long("early_withdrawal_fee")
                         .required(true)
                         .takes_value(true),
                 ),
@@ -362,7 +369,7 @@ fn main() {
 
         let (vault_pda, _) = Pubkey::find_program_address(&[VAULT_SEED], &program_id);
 
-        let instarctions = vec![Instruction::new_with_borsh(
+        let instructions = vec![Instruction::new_with_borsh(
             program_id,
             &StakeInstruction::GenerateVault {
                 mint,
@@ -373,8 +380,8 @@ fn main() {
             },
             vec![
                 AccountMeta::new(wallet_pubkey, true),
-                AccountMeta::new(system_program::id(), false),
                 AccountMeta::new(vault_pda, false),
+                AccountMeta::new(system_program::id(), false),
                 AccountMeta::new_readonly(
                     "SysvarRent111111111111111111111111111111111"
                         .parse::<Pubkey>()
@@ -383,7 +390,7 @@ fn main() {
                 ),
             ],
         )];
-        let mut tx = Transaction::new_with_payer(&instarctions, Some(&wallet_pubkey));
+        let mut tx = Transaction::new_with_payer(&instructions, Some(&wallet_pubkey));
         let recent_blockhash = client.get_latest_blockhash().expect("Can't get blockhash");
         tx.sign(&vec![&wallet_keypair], recent_blockhash);
         let id = client.send_transaction(&tx).expect("Transaction failed.");
