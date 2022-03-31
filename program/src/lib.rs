@@ -17,7 +17,7 @@ use spl_associated_token_account;
 use spl_token;
 
 const VAULT_SEED: &[u8; 8] = b"___vault";
-const ADMIN_PK: &str = "a7rsXXy1FQYGHex2hzYsVFMLf2ZWLdQQxN1qWA6Ah46";
+const ADMIN_PK: &str = "CbXeKZ47sfbTxyiAg5h4GLpdrnmzwVXPPihfkN3GiNKk";
 const MINT: &str = "SCYVn1w92poF5VaLf2myVBbTvBf1M8MLqJwpS64Gb9b";
 
 declare_id!("SCYV7PXsvGy4PKZLrZCZPaVDccNSNEBKCdJ6etycwEF");
@@ -28,8 +28,6 @@ entrypoint!(process_instruction);
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, BorshSchema)]
 enum StakeInstruction {
     GenerateVault {
-        #[allow(dead_code)]
-        mint: Pubkey,
         #[allow(dead_code)]
         min_period: u64,
         #[allow(dead_code)]
@@ -167,7 +165,7 @@ pub fn process_instruction(
             let clock = Clock::get()?;
 
             let (stake_address, _stake_bump) =
-                Pubkey::find_program_address(&[&staker.key.to_bytes()], &program_id);
+                Pubkey::find_program_address(&[STAKE_SEED, &staker.key.to_bytes()], &program_id);
             let (vault_address, vault_bump) =
                 Pubkey::find_program_address(&[VAULT_SEED], &program_id);
             let staker_token_account =
@@ -295,7 +293,7 @@ pub fn process_instruction(
 
         StakeInstruction::Stake { amount } => {
             let staker = next_account_info(accounts_iter)?;
-            let staker_info = next_account_info(accounts_iter)?;
+            let stake_data_info = next_account_info(accounts_iter)?;
             let staker_token_account_info = next_account_info(accounts_iter)?;
 
             let vault_info = next_account_info(accounts_iter)?;
@@ -307,8 +305,6 @@ pub fn process_instruction(
             let token_assoc = next_account_info(accounts_iter)?;
             let sys_info = next_account_info(accounts_iter)?;
             let rent_info = next_account_info(accounts_iter)?;
-
-            let stake_data_info = next_account_info(accounts_iter)?;
 
             let clock = Clock::get()?;
             let rent = &Rent::from_account_info(rent_info)?;
@@ -336,6 +332,7 @@ pub fn process_instruction(
                 //msg!("invalid stake_data account!");
                 return Err(ProgramError::Custom(0x10));
             }
+            msg!("Stake Safety Checks OK.");
 
             let size: u64 = 8 + 32 + 32 + 1 + 8 + 8 + 8 + 8;
             if stake_data_info.owner != program_id {
@@ -359,28 +356,34 @@ pub fn process_instruction(
                     &[&[&staker.key.to_bytes(), &[stake_data_bump]]],
                 )?;
             }
+            msg!("Stake Data Created");
 
             let stake_data = StakeData::try_from_slice(&stake_data_info.data.borrow());
+            msg!("got stake data");
             let vault_data = if let Ok(data) = VaultData::try_from_slice(&vault_info.data.borrow())
             {
                 data
             } else {
                 return Err(ProgramError::InvalidAccountData);
             };
+            msg!("got vault data");
 
             let total_staker_reward = amount.checked_mul(vault_data.rate).unwrap();
+            msg!("reward ok");
 
             let harvested = if let Ok(data) = &stake_data {
                 data.harvested
             } else {
                 0
             };
+            msg!("harvested: {}", harvested);
 
             let staked_amount = if let Ok(data) = &stake_data {
                 data.staked_amount
             } else {
                 amount
             };
+            msg!("staked: {}", staked_amount);
 
             let total_staked = vault_data.total_staked + amount;
             let total_obligations = vault_data.total_obligations + total_staker_reward;
@@ -405,6 +408,7 @@ pub fn process_instruction(
                 max_reward: amount.checked_mul(2).unwrap(), // change to rate
             };
             stake_struct.serialize(&mut &mut stake_data_info.data.borrow_mut()[..])?;
+            msg!("Stake Data Initialized");
 
             let (vault, vault_bump) = Pubkey::find_program_address(&[VAULT_SEED], &program_id);
             if vault != *vault_info.key {
@@ -466,7 +470,6 @@ pub fn process_instruction(
         }
 
         StakeInstruction::GenerateVault {
-            mint,
             min_period,
             reward_period,
             rate,
@@ -474,7 +477,11 @@ pub fn process_instruction(
         } => {
             let payer = next_account_info(accounts_iter)?;
             let pda = next_account_info(accounts_iter)?;
+            let vault_token_account_info = next_account_info(accounts_iter)?;
+            let mint = next_account_info(accounts_iter)?;
 
+            let token_program = next_account_info(accounts_iter)?;
+            let atoken_program = next_account_info(accounts_iter)?;
             let system_program = next_account_info(accounts_iter)?;
             let rent_info = next_account_info(accounts_iter)?;
 
@@ -482,6 +489,8 @@ pub fn process_instruction(
 
             let (vault_pda, vault_bump_seed) =
                 Pubkey::find_program_address(&[VAULT_SEED], &program_id);
+            let vault_token_account =
+                spl_associated_token_account::get_associated_token_address(&pda.key, mint.key);
 
             if pda.key != &vault_pda {
                 //msg!("Wrong account generated by client");
@@ -514,13 +523,29 @@ pub fn process_instruction(
                 )?;
             }
 
+            invoke(
+                &spl_associated_token_account::create_associated_token_account(
+                    payer.key, &vault_pda, mint.key,
+                ),
+                &[
+                    payer.clone(),
+                    vault_token_account_info.clone(),
+                    pda.clone(),
+                    mint.clone(),
+                    system_program.clone(),
+                    token_program.clone(),
+                    rent_info.clone(),
+                    atoken_program.clone(),
+                ],
+            )?;
+
             if *payer.key != admin || !payer.is_signer {
                 //unauthorized access
                 return Err(ProgramError::Custom(0x02));
             }
 
             let contract_data = VaultData {
-                mint,
+                mint: *mint.key,
                 min_period,
                 reward_period,
                 rate,

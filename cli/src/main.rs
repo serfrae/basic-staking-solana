@@ -2,6 +2,11 @@ use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
 use clap::{
     app_from_crate, crate_authors, crate_description, crate_name, crate_version, Arg, SubCommand,
 };
+use solana_clap_utils::{
+    input_parsers::{pubkey_of, value_of},
+    input_validators::{is_amount, is_keypair, is_parsable, is_pubkey, is_url},
+    keypair::{DefaultSigner, SignerFromPathConfig},
+};
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::borsh::try_from_slice_unchecked;
 use solana_sdk::commitment_config::CommitmentConfig;
@@ -20,12 +25,11 @@ use spl_token;
 const PROGRAM_ID: &str = "SCYV7PXsvGy4PKZLrZCZPaVDccNSNEBKCdJ6etycwEF";
 const VAULT_SEED: &[u8; 8] = b"___vault";
 const MINT: &str = "SCYVn1w92poF5VaLf2myVBbTvBf1M8MLqJwpS64Gb9b";
+const ADMIN_PK: &str = "CbXeKZ47sfbTxyiAg5h4GLpdrnmzwVXPPihfkN3GiNKk";
 
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, BorshSchema)]
 enum StakeInstruction {
     GenerateVault {
-        #[allow(dead_code)]
-        mint: Pubkey,
         #[allow(dead_code)]
         min_period: u64,
         #[allow(dead_code)]
@@ -35,7 +39,9 @@ enum StakeInstruction {
         #[allow(dead_code)]
         early_withdrawal_fee: u64,
     },
-    Stake,
+    Stake {
+        amount: u64,
+    },
     Unstake,
     Withdraw {
         #[allow(dead_code)]
@@ -57,6 +63,7 @@ struct StakeData {
 
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, BorshSchema)]
 struct VaultData {
+    mint: Pubkey,
     min_period: u64,
     reward_period: u64,
     rate: u64,
@@ -81,13 +88,6 @@ fn main() {
                         .short("e")
                         .long("env")
                         .required(false)
-                        .takes_value(true),
-                )
-                .arg(
-                    Arg::with_name("mint")
-                        .short("m")
-                        .long("mint")
-                        .required(true)
                         .takes_value(true),
                 )
                 .arg(
@@ -134,6 +134,16 @@ fn main() {
                         .long("env")
                         .required(false)
                         .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("amount")
+                        .short("a")
+                        .validator(is_amount)
+                        .long("amount")
+                        .value_name("AMOUNT")
+                        .allow_hyphen_values(true)
+                        .required(true)
+                        .takes_value(true),
                 ),
         )
         .subcommand(
@@ -172,9 +182,39 @@ fn main() {
                 .arg(
                     Arg::with_name("amount")
                         .short("a")
+                        .validator(is_amount)
+                        .allow_hyphen_values(true)
                         .long("amount")
+                        .value_name("AMOUNT")
                         .required(true)
                         .takes_value(true),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("vault").arg(
+                Arg::with_name("env")
+                    .short("e")
+                    .long("env")
+                    .required(false)
+                    .takes_value(true),
+            ),
+        )
+        .subcommand(
+            SubCommand::with_name("stake-data")
+                .arg(
+                    Arg::with_name("env")
+                        .short("e")
+                        .long("env")
+                        .required(false)
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("address")
+                        .short("p")
+                        .long("pubkey")
+                        .required(true)
+                        .takes_value(true)
+                        .index(1),
                 ),
         )
         .get_matches();
@@ -195,30 +235,34 @@ fn main() {
 
         let amount = matches.value_of("amount").unwrap().parse::<u64>().unwrap();
         let (vault, _vault_bump) = Pubkey::find_program_address(&[VAULT_SEED], &program_id);
-        let reward_destanation =
+        let staker_token_account =
             spl_associated_token_account::get_associated_token_address(&wallet_pubkey, &mint_pk);
-        let reward_source =
+        let vault_token_account =
             spl_associated_token_account::get_associated_token_address(&vault, &mint_pk);
+        let (stake_info, _stake_bump) =
+            Pubkey::find_program_address(&[&wallet_pubkey.to_bytes()], &program_id);
 
         let instructions = vec![Instruction::new_with_borsh(
             program_id,
             &StakeInstruction::Withdraw { amount },
             vec![
                 AccountMeta::new(wallet_pubkey, true),
-                AccountMeta::new(reward_destanation, false),
-                AccountMeta::new(reward_source, false),
+                AccountMeta::new(stake_info, false),
+                AccountMeta::new(staker_token_account, false),
                 AccountMeta::new_readonly(vault, false),
+                AccountMeta::new(vault_token_account, false),
                 AccountMeta::new_readonly(mint_pk, false),
-                AccountMeta::new_readonly(system_program::id(), false),
                 AccountMeta::new_readonly(spl_token::id(), false),
                 AccountMeta::new_readonly(
-                    "SysvarRent111111111111111111111111111111111"
+                    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
                         .parse::<Pubkey>()
                         .unwrap(),
                     false,
                 ),
+                AccountMeta::new_readonly(system_program::id(), false),
+                AccountMeta::new_readonly(spl_token::id(), false),
                 AccountMeta::new_readonly(
-                    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+                    "SysvarRent111111111111111111111111111111111"
                         .parse::<Pubkey>()
                         .unwrap(),
                     false,
@@ -302,18 +346,28 @@ fn main() {
             spl_associated_token_account::get_associated_token_address(&wallet_pubkey, &mint_pk);
         let vault_token_account =
             spl_associated_token_account::get_associated_token_address(&vault, &mint_pk);
+        println!("Vault Token Account: {}", vault_token_account);
         let (stake_data, _) =
             Pubkey::find_program_address(&[&wallet_pubkey.to_bytes()], &program_id);
+        let amount = matches.value_of("amount").unwrap().parse::<u64>().unwrap();
 
         let instructions = vec![Instruction::new_with_borsh(
             program_id,
-            &StakeInstruction::Stake,
+            &StakeInstruction::Stake { amount },
             vec![
                 AccountMeta::new(wallet_pubkey, true),
-                AccountMeta::new_readonly(vault, false),
+                AccountMeta::new(stake_data, false),
                 AccountMeta::new(staker_token_account, false),
+                AccountMeta::new_readonly(vault, false),
                 AccountMeta::new(vault_token_account, false),
+                AccountMeta::new_readonly(MINT.parse::<Pubkey>().unwrap(), false),
                 AccountMeta::new_readonly(spl_token::id(), false),
+                AccountMeta::new_readonly(
+                    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+                        .parse::<Pubkey>()
+                        .unwrap(),
+                    false,
+                ),
                 AccountMeta::new_readonly(system_program::id(), false),
                 AccountMeta::new_readonly(
                     "SysvarRent111111111111111111111111111111111"
@@ -321,13 +375,6 @@ fn main() {
                         .unwrap(),
                     false,
                 ),
-                AccountMeta::new_readonly(
-                    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-                        .parse::<Pubkey>()
-                        .unwrap(),
-                    false,
-                ),
-                AccountMeta::new(stake_data, false),
             ],
         )];
         let mut tx = Transaction::new_with_payer(&instructions, Some(&wallet_pubkey));
@@ -367,12 +414,14 @@ fn main() {
             .parse::<u64>()
             .unwrap();
 
+        let mint = MINT.parse::<Pubkey>().unwrap();
         let (vault_pda, _) = Pubkey::find_program_address(&[VAULT_SEED], &program_id);
+        let vault_token_address =
+            spl_associated_token_account::get_associated_token_address(&vault_pda, &mint);
 
         let instructions = vec![Instruction::new_with_borsh(
             program_id,
             &StakeInstruction::GenerateVault {
-                mint,
                 min_period,
                 reward_period,
                 rate,
@@ -381,6 +430,15 @@ fn main() {
             vec![
                 AccountMeta::new(wallet_pubkey, true),
                 AccountMeta::new(vault_pda, false),
+                AccountMeta::new(vault_token_address, false),
+                AccountMeta::new_readonly(mint, false),
+                AccountMeta::new_readonly(spl_token::id(), false),
+                AccountMeta::new_readonly(
+                    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+                        .parse::<Pubkey>()
+                        .unwrap(),
+                    false,
+                ),
                 AccountMeta::new(system_program::id(), false),
                 AccountMeta::new_readonly(
                     "SysvarRent111111111111111111111111111111111"
@@ -390,11 +448,62 @@ fn main() {
                 ),
             ],
         )];
+
         let mut tx = Transaction::new_with_payer(&instructions, Some(&wallet_pubkey));
         let recent_blockhash = client.get_latest_blockhash().expect("Can't get blockhash");
         tx.sign(&vec![&wallet_keypair], recent_blockhash);
         let id = client.send_transaction(&tx).expect("Transaction failed.");
         println!("vault account generated: {:?}", vault_pda);
         println!("tx id: {:?}", id);
+    }
+
+    if let Some(matches) = matches.subcommand_matches("vault") {
+        let url = match matches.value_of("env") {
+            Some("dev") => "https://api.devnet.solana.com",
+            _ => "https://api.mainnet-beta.solana.com",
+        };
+        let client = RpcClient::new_with_commitment(url.to_string(), CommitmentConfig::confirmed());
+        let (vault_data_pk, vault_data_bump) =
+            Pubkey::find_program_address(&[VAULT_SEED], &PROGRAM_ID.parse::<Pubkey>().unwrap());
+        let raw_vault_data = client.get_account_data(&vault_data_pk).unwrap().clone();
+        let vault_data = VaultData::try_from_slice(&raw_vault_data[..]).unwrap();
+
+        println!("Vault Mint: {}", vault_data.mint);
+        println!("Minimum Staking Period: {}", vault_data.min_period);
+        println!("Reward Period: {}", vault_data.reward_period);
+        println!("APR: {}", vault_data.rate);
+        println!("Early Withdrawal Fee: {}", vault_data.early_withdrawal_fee);
+        println!("Total Obligations: {}", vault_data.total_obligations);
+        println!("Total Staked: {}", vault_data.total_staked);
+    }
+
+    if let Some(matches) = matches.subcommand_matches("stake-data") {
+        let url = match matches.value_of("env") {
+            Some("dev") => "https://api.devnet.solana.com",
+            _ => "https://api.mainnet-beta.solana.com",
+        };
+        let client = RpcClient::new_with_commitment(url.to_string(), CommitmentConfig::confirmed());
+        let address = matches
+            .value_of("address")
+            .unwrap()
+            .parse::<Pubkey>()
+            .unwrap();
+
+        let (stake_data_pk, _stake_data_bump) = Pubkey::find_program_address(
+            &[&address.to_bytes()],
+            &PROGRAM_ID.parse::<Pubkey>().unwrap(),
+        );
+
+        let raw_stake_data = client.get_account_data(&stake_data_pk).unwrap().clone();
+        let stake_data = StakeData::try_from_slice(&raw_stake_data[..]).unwrap();
+
+        println!("Started Staking: {}", stake_data.timestamp);
+        println!("Staker Address: {}", stake_data.staker);
+        println!("Mint of Staked Token: {}", stake_data.mint);
+        println!("Staking Active: {}", stake_data.active);
+        println!("Amount Withdrawn: {}", stake_data.withdrawn);
+        println!("Amount Harvested: {}", stake_data.harvested);
+        println!("Staked Amount: {}", stake_data.staked_amount);
+        println!("Maximum Reward: {}", stake_data.max_reward);
     }
 }

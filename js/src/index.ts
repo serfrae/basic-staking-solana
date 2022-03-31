@@ -23,15 +23,15 @@ export const SCY_STAKING_PROGRAM_ID: PublicKey = new PublicKey(
 );
 
 export const SCY_MINT: PublicKey = new PublicKey(
-	"SCYfrGCw8aDiqdgcpdGjV6jp4UVVQLuphxTDLNWu36f"
+	"SCYVn1w92poF5VaLf2myVBbTvBf1M8MLqJwpS64Gb9b"
 );
 
 export const SCY_STAKING_VAULT_INFO: PublicKey = new PublicKey(
-	findVaultInfoAddress()
+	return findVaultInfoAddress();
 );
 
 export const SCY_STAKING_VAULT_TOKEN_ADDRESS: PublicKey = new PublicKey(
-	findAssociatedTokenAddress(SCY_STAKING_VAULT_INFO, SCY_MINT)
+	return findAssociatedTokenAddress(SCY_STAKING_VAULT_INFO, SCY_MINT);
 );
 
 export const RENT_SYSVAR: PublicKey = new PublicKey(
@@ -62,6 +62,18 @@ export type VaultData = {
 }
 
 
+//------------------------Get Account Data-----------------------------------
+async function getVaultDataRaw(connection: Connection): Promise<AccountInfo> {
+	return await connection.getAccountInfo(SCY_STAKING_VAULT_INFO);
+};
+
+export function getVaultData(connection: Connection): VaultData {
+	return getVaultDataRaw(connection).data.deserializeUnchecked();
+};
+
+
+
+
 //------------------------Instructions-----------------------------------------
 export class createStakeInstruction {
 	amount: Numberu64;
@@ -90,16 +102,17 @@ export class createStakeInstruction {
 				isSigner: true,
 				isWritable: true,
 			},
+				{
+				pubkey: stakeInfo,
+				isSigner: false,
+				isWritable: true,
+			},		
 			{
 				pubkey: stakerTokenAccount,
 				isSigner: false,
 				isWritable: true,
 			},
-			{
-				pubkey: stakeInfo,
-				isSigner: false,
-				isWritable: true,
-			},
+
 			{
 				pubkey: SCY_STAKING_VAULT_INFO,
 				isSigner: false,
@@ -109,6 +122,11 @@ export class createStakeInstruction {
 				pubkey: SCY_STAKING_VAULT_TOKEN_ADDRESS,
 				isSigner: false,
 				isWritable: true,
+			},
+			{
+				pubkey: SCY_MINT,
+				isSigner: false,
+				isWritable: false,
 			},
 			{
 				pubkey: TOKEN_PROGRAM_ID,
@@ -161,12 +179,12 @@ export class createUnstakeInstruction {
 				isWritable: true,
 			},
 			{
-				pubkey: stakerTokenAccount,
+				pubkey: stakeInfo,
 				isSigner: false,
 				isWritable: true,
 			},
 			{
-				pubkey: stakeInfo,
+				pubkey: stakerTokenAccount,
 				isSigner: false,
 				isWritable: true,
 			},
