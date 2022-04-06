@@ -107,11 +107,12 @@ pub fn process_instruction(
             let vault_token_account =
                 spl_associated_token_account::get_associated_token_address(vault_info.key, &mint);
 
+            msg!("scy serde");
             let vault_data = VaultData::try_from_slice(&vault_info.data.borrow())?;
+            msg!("spl serde");
             let vault_token_account_data = spl_token::state::Account::unpack_from_slice(
                 &vault_token_account_info.data.borrow(),
             )?;
-
             if amount
                 > vault_token_account_data.amount
                     - (vault_data.total_obligations + vault_data.total_staked)
@@ -166,7 +167,7 @@ pub fn process_instruction(
             let clock = Clock::get()?;
 
             let (stake_address, _stake_bump) =
-                Pubkey::find_program_address(&[STAKE_SEED, &staker.key.to_bytes()], &program_id);
+                Pubkey::find_program_address(&[&staker.key.to_bytes()], &program_id);
             let (vault_address, vault_bump) =
                 Pubkey::find_program_address(&[VAULT_SEED], &program_id);
             let staker_token_account =
@@ -248,7 +249,7 @@ pub fn process_instruction(
                 .unwrap();
             //CHECK
             let mut reward = n_elapsed_rewards.checked_mul(reward_per_period).unwrap();
-            let withdrawal_amount = reward.checked_add(stake_data.staked_amount).unwrap();
+            let mut withdrawal_amount = reward.checked_add(stake_data.staked_amount).unwrap();
 
             let total_withdrawal = if elapsed_duration < vault_data.min_period {
                 withdrawal_amount = withdrawal_amount

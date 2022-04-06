@@ -235,8 +235,9 @@ fn main() {
 
         let amount = spl_token::ui_amount_to_amount(
             matches.value_of("amount").unwrap().parse::<u64>().unwrap() as f64,
-            6,
+            9,
         );
+        println!("{}", amount);
         let (vault, _vault_bump) = Pubkey::find_program_address(&[VAULT_SEED], &program_id);
         let staker_token_account =
             spl_associated_token_account::get_associated_token_address(&wallet_pubkey, &mint_pk);
