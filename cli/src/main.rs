@@ -301,24 +301,11 @@ fn main() {
 
         let accounts = vec![
             AccountMeta::new(wallet_pubkey, true),
-            AccountMeta::new_readonly(system_program::id(), false),
-            AccountMeta::new_readonly(spl_token::id(), false),
-            AccountMeta::new_readonly(
-                "SysvarRent111111111111111111111111111111111"
-                    .parse::<Pubkey>()
-                    .unwrap(),
-                false,
-            ),
-            AccountMeta::new_readonly(
-                "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-                    .parse::<Pubkey>()
-                    .unwrap(),
-                false,
-            ),
             AccountMeta::new(stake_data, false),
-            AccountMeta::new_readonly(vault, false),
             AccountMeta::new(staker_token_account, false),
+            AccountMeta::new_readonly(vault, false),
             AccountMeta::new(vault_token_account, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(mint_pk, false),
         ];
         // println!("{:#?}", accounts);
