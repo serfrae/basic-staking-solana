@@ -233,7 +233,10 @@ fn main() {
         let wallet_keypair = read_keypair_file(wallet_path).expect("Can't open file-wallet");
         let wallet_pubkey = wallet_keypair.pubkey();
 
-        let amount = matches.value_of("amount").unwrap().parse::<u64>().unwrap();
+        let amount = spl_token::ui_amount_to_amount(
+            matches.value_of("amount").unwrap().parse::<u64>().unwrap() as f64,
+            6,
+        );
         let (vault, _vault_bump) = Pubkey::find_program_address(&[VAULT_SEED], &program_id);
         let staker_token_account =
             spl_associated_token_account::get_associated_token_address(&wallet_pubkey, &mint_pk);
