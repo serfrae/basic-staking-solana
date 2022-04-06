@@ -16,6 +16,7 @@ use solana_program::{
 use spl_associated_token_account;
 use spl_token;
 
+const YEAR: u64 = 31_556_926;
 const VAULT_SEED: &[u8; 8] = b"___vault";
 const ADMIN_PK: &str = "CbXeKZ47sfbTxyiAg5h4GLpdrnmzwVXPPihfkN3GiNKk";
 const MINT: &str = "SCYVn1w92poF5VaLf2myVBbTvBf1M8MLqJwpS64Gb9b";
@@ -234,28 +235,28 @@ pub fn process_instruction(
                 return Err(ProgramError::Custom(0x108));
             }
 
-            if clock.unix_timestamp as u64 - stake_data.timestamp < vault_data.min_period {
+            let elapsed_duration = clock.unix_timestamp as u64 - stake_data.timestamp;
+            let n_elapsed_rewards = elapsed_duration / vault_data.reward_period;
+
+            if elapsed_duration < vault_data.min_period {
                 //can't unstake because minimal period of staking is not reached yet
                 //change to early_withdrawal_fee
                 return Err(ProgramError::Custom(0x109));
             }
-            msg!(
-                "periods passed {:?}",
-                (clock.unix_timestamp as u64 - stake_data.timestamp) / vault_data.reward_period
-            );
 
+            let reward_per_period = stake_data.max_reward / (YEAR / vault_data.reward_period);
             //CHECK
-            let mut reward = (clock.unix_timestamp as u64 - stake_data.timestamp)
-                / vault_data.reward_period
-                * (stake_data.staked_amount * vault_data.rate);
+            let mut reward = n_elapsed_rewards * reward_per_period;
+            let withdrawal_amount = reward + stake_data.staked_amount;
 
-            let total_withdrawal =
-                if clock.unix_timestamp as u64 - stake_data.timestamp < vault_data.min_period {
-                    (stake_data.staked_amount + reward).checked_div(20).unwrap()
-                } else {
-                    reward + stake_data.staked_amount
-                };
+            let total_withdrawal = if elapsed_duration < vault_data.min_period {
+                withdrawal_amount -= withdrawal_amount.checked_div(20).unwrap();
+                withdrawal_amount
+            } else {
+                withdrawal_amount
+            };
 
+            msg!("periods passed {:?}", n_elapsed_rewards);
             msg!("reward {:?}", reward);
             msg!("Already harvested {:?}", stake_data.harvested);
             msg!("Max harvest {:?}", stake_data.max_reward);
@@ -356,34 +357,28 @@ pub fn process_instruction(
                     &[&[&staker.key.to_bytes(), &[stake_data_bump]]],
                 )?;
             }
-            msg!("Stake Data Created");
 
             let stake_data = StakeData::try_from_slice(&stake_data_info.data.borrow());
-            msg!("got stake data");
             let vault_data = if let Ok(data) = VaultData::try_from_slice(&vault_info.data.borrow())
             {
                 data
             } else {
                 return Err(ProgramError::InvalidAccountData);
             };
-            msg!("got vault data");
 
             let total_staker_reward = amount.checked_mul(vault_data.rate).unwrap();
-            msg!("reward ok");
 
             let harvested = if let Ok(data) = &stake_data {
                 data.harvested
             } else {
                 0
             };
-            msg!("harvested: {}", harvested);
 
             let staked_amount = if let Ok(data) = &stake_data {
                 data.staked_amount
             } else {
                 amount
             };
-            msg!("staked: {}", staked_amount);
 
             let total_staked = vault_data.total_staked + amount;
             let total_obligations = vault_data.total_obligations + total_staker_reward;
