@@ -235,22 +235,25 @@ pub fn process_instruction(
                 return Err(ProgramError::Custom(0x108));
             }
 
-            let elapsed_duration = clock.unix_timestamp as u64 - stake_data.timestamp;
-            let n_elapsed_rewards = elapsed_duration / vault_data.reward_period;
+            let elapsed_duration = (clock.unix_timestamp as u64)
+                .checked_sub(stake_data.timestamp)
+                .unwrap();
+            let n_elapsed_rewards = elapsed_duration
+                .checked_div(vault_data.reward_period)
+                .unwrap();
 
-            if elapsed_duration < vault_data.min_period {
-                //can't unstake because minimal period of staking is not reached yet
-                //change to early_withdrawal_fee
-                return Err(ProgramError::Custom(0x109));
-            }
-
-            let reward_per_period = stake_data.max_reward / (YEAR / vault_data.reward_period);
+            let reward_per_period = stake_data
+                .max_reward
+                .checked_div((YEAR.checked_div(vault_data.reward_period).unwrap()))
+                .unwrap();
             //CHECK
-            let mut reward = n_elapsed_rewards * reward_per_period;
-            let withdrawal_amount = reward + stake_data.staked_amount;
+            let mut reward = n_elapsed_rewards.checked_mul(reward_per_period).unwrap();
+            let withdrawal_amount = reward.checked_add(stake_data.staked_amount).unwrap();
 
             let total_withdrawal = if elapsed_duration < vault_data.min_period {
-                withdrawal_amount -= withdrawal_amount.checked_div(20).unwrap();
+                withdrawal_amount = withdrawal_amount
+                    .checked_sub(withdrawal_amount.checked_div(20).unwrap())
+                    .unwrap();
                 withdrawal_amount
             } else {
                 withdrawal_amount
