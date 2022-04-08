@@ -2,12 +2,15 @@ use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
 use clap::{
     app_from_crate, crate_authors, crate_description, crate_name, crate_version, Arg, SubCommand,
 };
+#[allow(unused_imports)]
 use solana_clap_utils::{
     input_parsers::{pubkey_of, value_of},
     input_validators::{is_amount, is_keypair, is_parsable, is_pubkey, is_url},
     keypair::{DefaultSigner, SignerFromPathConfig},
 };
+#[allow(unused_imports)]
 use solana_client::rpc_client::RpcClient;
+#[allow(unused_imports)]
 use solana_sdk::borsh::try_from_slice_unchecked;
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::instruction::{AccountMeta, Instruction};
@@ -25,6 +28,7 @@ use spl_token;
 const PROGRAM_ID: &str = "SCYV7PXsvGy4PKZLrZCZPaVDccNSNEBKCdJ6etycwEF";
 const VAULT_SEED: &[u8; 8] = b"___vault";
 const MINT: &str = "SCYVn1w92poF5VaLf2myVBbTvBf1M8MLqJwpS64Gb9b";
+#[allow(dead_code)]
 const ADMIN_PK: &str = "CbXeKZ47sfbTxyiAg5h4GLpdrnmzwVXPPihfkN3GiNKk";
 
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, BorshSchema)]
@@ -40,6 +44,7 @@ enum StakeInstruction {
         early_withdrawal_fee: u64,
     },
     Stake {
+        #[allow(dead_code)]
         amount: u64,
     },
     Unstake,
@@ -391,8 +396,6 @@ fn main() {
         let wallet_keypair = read_keypair_file(wallet_path).expect("Can't open file-wallet");
         let wallet_pubkey = wallet_keypair.pubkey();
 
-        let mint = MINT.parse::<Pubkey>().unwrap();
-
         let min_period = matches
             .value_of("min_period")
             .unwrap()
@@ -459,7 +462,7 @@ fn main() {
             _ => "https://api.mainnet-beta.solana.com",
         };
         let client = RpcClient::new_with_commitment(url.to_string(), CommitmentConfig::confirmed());
-        let (vault_data_pk, vault_data_bump) =
+        let (vault_data_pk, _vault_data_bump) =
             Pubkey::find_program_address(&[VAULT_SEED], &program_id);
         let raw_vault_data = client.get_account_data(&vault_data_pk).unwrap().clone();
         let vault_data = VaultData::try_from_slice(&raw_vault_data[..]).unwrap();
