@@ -25,7 +25,7 @@ use solana_sdk::transaction::Transaction;
 use spl_associated_token_account;
 use spl_token;
 
-const PROGRAM_ID: &str = "SCYV7PXsvGy4PKZLrZCZPaVDccNSNEBKCdJ6etycwEF";
+const PROGRAM_ID: &str = "scyURqbFspMW69Pa5hjY74NJyn1Hbx14YEfDMZeJTcB";
 const VAULT_SEED: &[u8; 8] = b"___vault";
 const MINT: &str = "SCYVn1w92poF5VaLf2myVBbTvBf1M8MLqJwpS64Gb9b";
 #[allow(dead_code)]
@@ -359,7 +359,7 @@ fn main() {
                 AccountMeta::new(wallet_pubkey, true),
                 AccountMeta::new(stake_data, false),
                 AccountMeta::new(staker_token_account, false),
-                AccountMeta::new_readonly(vault, false),
+                AccountMeta::new(vault, false),
                 AccountMeta::new(vault_token_account, false),
                 AccountMeta::new_readonly(MINT.parse::<Pubkey>().unwrap(), false),
                 AccountMeta::new_readonly(spl_token::id(), false),
@@ -472,8 +472,14 @@ fn main() {
         println!("Reward Period: {}", vault_data.reward_period);
         println!("APR: {}", vault_data.rate);
         println!("Early Withdrawal Fee: {}", vault_data.early_withdrawal_fee);
-        println!("Total Obligations: {}", vault_data.total_obligations);
-        println!("Total Staked: {}", vault_data.total_staked);
+        println!(
+            "Total Obligations: {}",
+            spl_token::amount_to_ui_amount(vault_data.total_obligations, 9)
+        );
+        println!(
+            "Total Staked: {}",
+            spl_token::amount_to_ui_amount(vault_data.total_staked, 9)
+        );
     }
 
     if let Some(matches) = matches.subcommand_matches("stake-data") {
