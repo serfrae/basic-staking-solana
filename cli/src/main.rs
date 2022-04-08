@@ -238,6 +238,7 @@ fn main() {
             9,
         );
         println!("{}", amount);
+
         let (vault, _vault_bump) = Pubkey::find_program_address(&[VAULT_SEED], &program_id);
         let staker_token_account =
             spl_associated_token_account::get_associated_token_address(&wallet_pubkey, &mint_pk);
@@ -303,7 +304,7 @@ fn main() {
             AccountMeta::new(wallet_pubkey, true),
             AccountMeta::new(stake_data, false),
             AccountMeta::new(staker_token_account, false),
-            AccountMeta::new_readonly(vault, false),
+            AccountMeta::new(vault, false),
             AccountMeta::new(vault_token_account, false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(mint_pk, false),
@@ -340,7 +341,11 @@ fn main() {
         println!("Vault Token Account: {}", vault_token_account);
         let (stake_data, _) =
             Pubkey::find_program_address(&[&wallet_pubkey.to_bytes()], &program_id);
-        let amount = matches.value_of("amount").unwrap().parse::<u64>().unwrap();
+        let amount = spl_token::ui_amount_to_amount(
+            matches.value_of("amount").unwrap().parse::<f64>().unwrap(),
+            9,
+        );
+        println!("Amount: {}", amount);
 
         let instructions = vec![Instruction::new_with_borsh(
             program_id,
@@ -455,7 +460,7 @@ fn main() {
         };
         let client = RpcClient::new_with_commitment(url.to_string(), CommitmentConfig::confirmed());
         let (vault_data_pk, vault_data_bump) =
-            Pubkey::find_program_address(&[VAULT_SEED], &PROGRAM_ID.parse::<Pubkey>().unwrap());
+            Pubkey::find_program_address(&[VAULT_SEED], &program_id);
         let raw_vault_data = client.get_account_data(&vault_data_pk).unwrap().clone();
         let vault_data = VaultData::try_from_slice(&raw_vault_data[..]).unwrap();
 
@@ -492,9 +497,21 @@ fn main() {
         println!("Staker Address: {}", stake_data.staker);
         println!("Mint of Staked Token: {}", stake_data.mint);
         println!("Staking Active: {}", stake_data.active);
-        println!("Amount Withdrawn: {}", stake_data.withdrawn);
-        println!("Amount Harvested: {}", stake_data.harvested);
-        println!("Staked Amount: {}", stake_data.staked_amount);
-        println!("Maximum Reward: {}", stake_data.max_reward);
+        println!(
+            "Amount Withdrawn: {}",
+            spl_token::amount_to_ui_amount(stake_data.withdrawn, 9)
+        );
+        println!(
+            "Amount Harvested: {}",
+            spl_token::amount_to_ui_amount(stake_data.harvested, 9)
+        );
+        println!(
+            "Staked Amount: {}",
+            spl_token::amount_to_ui_amount(stake_data.staked_amount, 9)
+        );
+        println!(
+            "Maximum Reward: {}",
+            spl_token::amount_to_ui_amount(stake_data.max_reward, 9)
+        );
     }
 }
