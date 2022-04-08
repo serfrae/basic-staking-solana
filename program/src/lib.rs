@@ -295,7 +295,7 @@ pub fn process_instruction(
 
             stake_data.active = false;
             stake_data.harvested += reward;
-            stake_data.withdrawn += reward;
+            stake_data.withdrawn += reward + stake_data.staked_amount;
             stake_data.staked_amount = 0;
             stake_data.max_reward = 0;
             stake_data.serialize(&mut &mut stake_info.data.borrow_mut()[..])?;
