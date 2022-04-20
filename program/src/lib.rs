@@ -92,19 +92,23 @@ pub fn process_instruction(
             let vault_info = next_account_info(accounts_iter)?;
             let vault_token_account_info = next_account_info(accounts_iter)?;
 
-            let token_info = next_account_info(accounts_iter)?;
             let mint_info = next_account_info(accounts_iter)?;
+            let token_program = next_account_info(accounts_iter)?;
 
             if *admin_info.key != admin || !admin_info.is_signer {
                 //unauthorized access
                 return Err(ProgramError::Custom(0x231));
             }
 
+            if *mint_info.key != mint {
+                return Err(ProgramError::Custom(0x67));
+            }
+
             let (vault_address, vault_bump) =
                 Pubkey::find_program_address(&[VAULT_SEED], &program_id);
-            let admin_token_account =
+            let admin_token_address =
                 spl_associated_token_account::get_associated_token_address(admin_info.key, &mint);
-            let vault_token_account =
+            let vault_token_address =
                 spl_associated_token_account::get_associated_token_address(vault_info.key, &mint);
 
             let vault_data = VaultData::try_from_slice(&vault_info.data.borrow())?;
@@ -119,23 +123,20 @@ pub fn process_instruction(
             }
 
             if vault_address != *vault_info.key {
-                //wrong stake_info
                 return Err(ProgramError::Custom(0x261));
             }
 
-            if admin_token_account != *admin_token_account_info.key {
-                //wrong payer_reward_holder_info
+            if admin_token_address != *admin_token_account_info.key {
                 return Err(ProgramError::Custom(0x262));
             }
 
-            if vault_token_account != *vault_token_account_info.key {
-                //wrong vault_reward_holder_info
+            if vault_token_address != *vault_token_account_info.key {
                 return Err(ProgramError::Custom(0x263));
             }
 
             invoke_signed(
                 &spl_token::instruction::transfer(
-                    token_info.key,
+                    token_program.key,
                     vault_token_account_info.key,
                     admin_token_account_info.key,
                     vault_info.key,
@@ -146,7 +147,7 @@ pub fn process_instruction(
                     vault_token_account_info.clone(),
                     admin_token_account_info.clone(),
                     vault_info.clone(),
-                    token_info.clone(),
+                    token_program.clone(),
                 ],
                 &[&[VAULT_SEED, &[vault_bump]]],
             )?;
@@ -159,8 +160,8 @@ pub fn process_instruction(
             let vault_info = next_account_info(accounts_iter)?;
             let vault_token_account_info = next_account_info(accounts_iter)?;
 
-            let token_info = next_account_info(accounts_iter)?;
             let mint_info = next_account_info(accounts_iter)?;
+            let token_program = next_account_info(accounts_iter)?;
 
             let clock = Clock::get()?;
 
@@ -178,8 +179,8 @@ pub fn process_instruction(
                 return Err(ProgramError::Custom(0x11));
             }
 
-            if *token_info.key != spl_token::id() {
-                //wrong token_info
+            if *token_program.key != spl_token::id() {
+                //wrong token_program
                 return Err(ProgramError::Custom(0x345));
             }
 
@@ -194,17 +195,17 @@ pub fn process_instruction(
             }
 
             if staker_token_account != *staker_token_account_info.key {
-                //wrong payer_reward_holder_info
+                //wrong payer_token_account
                 return Err(ProgramError::Custom(0x62));
             }
 
             if vault_token_account != *vault_token_account_info.key {
-                //wrong vault_reward_holder_info
+                //wrong vault_token_account
                 return Err(ProgramError::Custom(0x63));
             }
 
             if mint != *mint_info.key {
-                //wrong reward_mint_info
+                //wrong mint_info
                 return Err(ProgramError::Custom(0x67));
             }
 
@@ -246,7 +247,7 @@ pub fn process_instruction(
                 .checked_div(YEAR.checked_div(vault_data.reward_period).unwrap())
                 .unwrap();
             //CHECK
-            let mut reward = n_elapsed_rewards.checked_mul(reward_per_period).unwrap();
+            let reward = n_elapsed_rewards.checked_mul(reward_per_period).unwrap();
             let mut withdrawal_amount = reward.checked_add(stake_data.staked_amount).unwrap();
 
             let total_withdrawal = if elapsed_duration < vault_data.min_period {
@@ -273,7 +274,7 @@ pub fn process_instruction(
 
             invoke_signed(
                 &spl_token::instruction::transfer(
-                    token_info.key,
+                    token_program.key,
                     vault_token_account_info.key,
                     staker_token_account_info.key,
                     vault_info.key,
@@ -284,7 +285,7 @@ pub fn process_instruction(
                     vault_token_account_info.clone(),
                     staker_token_account_info.clone(),
                     vault_info.clone(),
-                    token_info.clone(),
+                    token_program.clone(),
                 ],
                 &[&[VAULT_SEED, &[vault_bump]]],
             )?;
@@ -323,13 +324,13 @@ pub fn process_instruction(
                 Pubkey::find_program_address(&[&staker.key.to_bytes()], &program_id);
             let (vault_address, _vault_bump) =
                 Pubkey::find_program_address(&[VAULT_SEED], &program_id);
-            let staker_token_account =
+            let staker_token_address =
                 spl_associated_token_account::get_associated_token_address(staker.key, &mint);
-            let vault_token_account =
+            let vault_token_address =
                 spl_associated_token_account::get_associated_token_address(vault_info.key, &mint);
 
             if *token_program.key != spl_token::id() {
-                //wrong token_info
+                //wrong token_program
                 return Err(ProgramError::Custom(0x345));
             }
 
@@ -342,6 +343,20 @@ pub fn process_instruction(
                 //msg!("invalid stake_data account!");
                 return Err(ProgramError::Custom(0x10));
             }
+
+            if vault_address != *vault_info.key {
+                //incorrect vault_info
+                return Err(ProgramError::Custom(0x12));
+            }
+
+            if staker_token_address != *staker_token_account_info.key {
+                return Err(ProgramError::Custom(0x62));
+            }
+
+            if vault_token_address != *vault_token_account_info.key {
+                return Err(ProgramError::Custom(0x63));
+            }
+
             msg!("Stake Safety Checks OK.");
 
             if stake_data_info.try_data_is_empty()? {
@@ -384,7 +399,7 @@ pub fn process_instruction(
                     0
                 };
 
-                let staked_amount = if let Ok(data) = &stake_data {
+                let _staked_amount = if let Ok(data) = &stake_data {
                     data.staked_amount
                 } else {
                     amount
@@ -420,7 +435,7 @@ pub fn process_instruction(
                 vault_data.serialize(&mut &mut vault_info.data.borrow_mut()[..])?;
                 msg!("Stake Data Initialized");
 
-                let (vault, vault_bump) = Pubkey::find_program_address(&[VAULT_SEED], &program_id);
+                let (vault, _vault_bump) = Pubkey::find_program_address(&[VAULT_SEED], &program_id);
                 if vault != *vault_info.key {
                     //msg!("Wrong vault");
                     return Err(ProgramError::Custom(0x07));
@@ -460,7 +475,7 @@ pub fn process_instruction(
                     .checked_div(YEAR.checked_div(vault_data.reward_period).unwrap())
                     .unwrap();
                 //CHECK
-                let mut reward = n_elapsed_rewards.checked_mul(reward_per_period).unwrap();
+                let reward = n_elapsed_rewards.checked_mul(reward_per_period).unwrap();
 
                 vault_data.total_staked += reward;
                 vault_data.total_obligations -= stake_data.max_reward;

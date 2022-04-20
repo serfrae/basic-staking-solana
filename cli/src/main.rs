@@ -245,38 +245,21 @@ fn main() {
         println!("{}", amount);
 
         let (vault, _vault_bump) = Pubkey::find_program_address(&[VAULT_SEED], &program_id);
-        let staker_token_account =
+        let admin_token_address =
             spl_associated_token_account::get_associated_token_address(&wallet_pubkey, &mint_pk);
-        let vault_token_account =
+        let vault_token_address =
             spl_associated_token_account::get_associated_token_address(&vault, &mint_pk);
-        let (stake_info, _stake_bump) =
-            Pubkey::find_program_address(&[&wallet_pubkey.to_bytes()], &program_id);
 
         let instructions = vec![Instruction::new_with_borsh(
             program_id,
             &StakeInstruction::Withdraw { amount },
             vec![
                 AccountMeta::new(wallet_pubkey, true),
-                AccountMeta::new(stake_info, false),
-                AccountMeta::new(staker_token_account, false),
+                AccountMeta::new(admin_token_address, false),
                 AccountMeta::new_readonly(vault, false),
-                AccountMeta::new(vault_token_account, false),
+                AccountMeta::new(vault_token_address, false),
                 AccountMeta::new_readonly(mint_pk, false),
                 AccountMeta::new_readonly(spl_token::id(), false),
-                AccountMeta::new_readonly(
-                    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-                        .parse::<Pubkey>()
-                        .unwrap(),
-                    false,
-                ),
-                AccountMeta::new_readonly(system_program::id(), false),
-                AccountMeta::new_readonly(spl_token::id(), false),
-                AccountMeta::new_readonly(
-                    "SysvarRent111111111111111111111111111111111"
-                        .parse::<Pubkey>()
-                        .unwrap(),
-                    false,
-                ),
             ],
         )];
         let mut tx = Transaction::new_with_payer(&instructions, Some(&wallet_pubkey));
@@ -311,8 +294,8 @@ fn main() {
             AccountMeta::new(staker_token_account, false),
             AccountMeta::new(vault, false),
             AccountMeta::new(vault_token_account, false),
-            AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(mint_pk, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
         ];
         // println!("{:#?}", accounts);
         let instructions = vec![Instruction::new_with_borsh(

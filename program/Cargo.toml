@@ -1,8 +1,8 @@
 [package]
 name = "simple-staking-program"
 version = "0.1.0"
-description = "Staking NFT"
-authors = ["Ser Frae<a@serfrae.com>"]
+description = "A simple staking program for Solana."
+authors = ["Andrew Fraser<a@serfrae.com>"]
 edition = "2021"
 
 [features]
