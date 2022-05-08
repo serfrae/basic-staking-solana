@@ -21,7 +21,7 @@ const VAULT_SEED: &[u8; 8] = b"___vault";
 const ADMIN_PK: &str = "CbXeKZ47sfbTxyiAg5h4GLpdrnmzwVXPPihfkN3GiNKk";
 const MINT: &str = "SCYVn1w92poF5VaLf2myVBbTvBf1M8MLqJwpS64Gb9b";
 
-declare_id!("scyURqbFspMW69Pa5hjY74NJyn1Hbx14YEfDMZeJTcB");
+declare_id!("titFt4THm4Yv6XY8BDje4vn3eGtCtZkhCXqQhYyDp7W");
 
 // Declare and export the program's entrypoint
 entrypoint!(process_instruction);

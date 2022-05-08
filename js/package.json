@@ -2,6 +2,7 @@
 	"name": "@serfrae/simple-staking-program",
 	"version": "0.1.0",
 	"dependencies": {
+		"@project-serum/sol-wallet-adapter": "^0.2.6",
 		"@solana/spl-token": "0.1.5",
 		"@solana/web3.js": "^1.15.0",
 		"bn.js": "^5.1.3",

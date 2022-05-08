@@ -1,0 +1,48 @@
+Arguments: 
+  /usr/bin/node /home/a7rs/.local/share/npm/bin/yarn add sol-wallet-adapter
+
+PATH: 
+  /home/a7rs/.local/share/solana/install/active_release/bin:/home/a7rs/.local/share/google-cloud-sdk/bin:/home/a7rs/.local/share/npm/bin:/home/a7rs/.local/share/gem/ruby/3.0.0/bin:/home/a7rs/.local/share/cargo/bin:/opt/homebrew/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/home/a7rs/bin:/home/a7rs/.local/bin:/home/a7rs/Scripts:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl
+
+Yarn version: 
+  1.22.17
+
+Node version: 
+  18.1.0
+
+Platform: 
+  linux x64
+
+Trace: 
+  Error: https://registry.yarnpkg.com/sol-wallet-adapter: Not found
+      at params.callback [as _callback] (/home/a7rs/.local/share/npm/lib/node_modules/yarn/lib/cli.js:67029:18)
+      at self.callback (/home/a7rs/.local/share/npm/lib/node_modules/yarn/lib/cli.js:140883:22)
+      at Request.emit (node:events:527:28)
+      at Request.<anonymous> (/home/a7rs/.local/share/npm/lib/node_modules/yarn/lib/cli.js:141855:10)
+      at Request.emit (node:events:527:28)
+      at IncomingMessage.<anonymous> (/home/a7rs/.local/share/npm/lib/node_modules/yarn/lib/cli.js:141777:12)
+      at Object.onceWrapper (node:events:641:28)
+      at IncomingMessage.emit (node:events:539:35)
+      at endReadableNT (node:internal/streams/readable:1344:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:82:21)
+
+npm manifest: 
+  {
+  	"name": "@serfrae/simple-staking-program",
+  	"version": "0.1.0",
+  	"dependencies": {
+  		"@solana/spl-token": "0.1.5",
+  		"@solana/web3.js": "^1.15.0",
+  		"bn.js": "^5.1.3",
+  		"borsh": "^0.4.0",
+  		"bs58": "4.0.1",
+  		"buffer-layout": "^1.2.0",
+  		"tweetnacl": "^1.0.3"
+  	}
+  }
+
+yarn manifest: 
+  No manifest
+
+Lockfile: 
+  No lockfile

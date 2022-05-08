@@ -1,6 +1,8 @@
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
+	AccountInfo,
   Connection,
+  clusterApiUrl,
   Keypair,
   PublicKey,
   SYSVAR_CLOCK_PUBKEY,
@@ -9,6 +11,7 @@ import {
 } from "@solana/web3.js";
 import BN from "bn.js";
 import { deserializeUnchecked, Schema, serialize } from "borsh";
+import Wallet from "@project-serum/sol-wallet-adapter";
 
 //---------------Pubkeys + Seeds-----------------------------------------======
 
@@ -27,15 +30,19 @@ export const SCY_MINT: PublicKey = new PublicKey(
 );
 
 export const SCY_STAKING_VAULT_INFO: PublicKey = new PublicKey(
-	return findVaultInfoAddress();
+	findVaultInfoAddress()
 );
 
 export const SCY_STAKING_VAULT_TOKEN_ADDRESS: PublicKey = new PublicKey(
-	return findAssociatedTokenAddress(SCY_STAKING_VAULT_INFO, SCY_MINT);
+	findAssociatedTokenAddress(SCY_STAKING_VAULT_INFO, SCY_MINT)
 );
 
 export const RENT_SYSVAR: PublicKey = new PublicKey(
 	"SysvarRent111111111111111111111111111111111"
+);
+
+export const SYSTEM_PROGRAM_ID: PublicKey = new PublicKey(
+	"11111111111111111111111111111111"
 );
 
 
@@ -61,18 +68,131 @@ export type VaultData = {
 	totalStaked: Numberu64,
 }
 
+class StakeSchema {
+	timestamp: Numberu64
+	staker: PublicKey
+	mint: PublicKey
+	active: boolean
+	withdraw: Numberu64
+	harvested: Numberu64
+	stakedAmount: Numberu64
+	maxReward: Numberu64
 
+	constructor(
+		timestamp?: Numberu64,
+		staker?: PublicKey,
+		mint?: PublicKey,
+		active?: boolean,
+		withdraw?: Numberu64,
+		harvested?: Numberu64,
+		stakedAmount?: Numberu64,
+		maxReward?: Numberu64,
+	) {
+		this.timestamp = timestamp;
+		this.staker = staker;
+		this.mint = mint;
+		this.active = active;
+		this.withdraw = withdraw;
+		this.harvested = harvested;
+		this.stakedAmount = stakedAmount;
+		this.maxReward = maxReward;
+	}
+
+	static schema = new Map([[
+		StakeSchema, { 
+			kind: "struct", 
+			fields: [
+				['timestamp', 'u64'],
+				['staker', 'Pubkey'],
+				['mint', 'Pubkey'],
+				['active', 'bool'],
+				['withdrawn', 'u64'],
+				['harvested', 'u64'],
+				['staked_amount', 'u64'],
+				['max_reward', 'u64'],
+			]
+		}
+	]])
+
+	serialize(): Uint8Array {
+		return serialize(StakeSchema.schema, this);
+	}
+}
+
+class VaultSchema {
+	mint: PublicKey
+	minPeriod: Numberu64
+	rewardPeriod: Numberu64
+	rate: Numberu64
+	earlyWithdrawalFee: Numberu64
+	totalObligations: Numberu64
+	totalStaked: Numberu64;
+
+	constructor(
+		mint?: PublicKey,
+		minPeriod?: Numberu64,
+		rewardPeriod?: Numberu64,
+		rate?: Numberu64,
+		earlyWithdrawalFee?: Numberu64, 
+		totalObligations?: Numberu64,
+		totalStaked?: Numberu64,
+	){
+		this.mint = mint;
+		this.minPeriod = minPeriod;
+		this.rewardPeriod = rewardPeriod;
+		this.rate = rate;
+		this.earlyWithdrawalFee = earlyWithdrawalFee;
+		this.totalObligations = totalObligations;
+		this.totalStaked = totalStaked;
+	}
+
+	static schema = new Map([[
+		VaultSchema, {
+			kind: "struct",
+			fields: [ 
+				['mint', 'u64'],
+				['min_period', 'u64'],
+				['reward_period', 'u64'],
+				['rate', 'u64'],
+				['early_withdrawal_fee', 'u64'],
+				['total_obligations', 'u64'],
+				['total_staked', 'u64']
+			]
+		}
+	]])
+
+	serialize(): Uint8Array {
+		return serialize(VaultSchema.schema, this);
+	}
+
+	async deserialize(connection: Connection, buffer: Buffer) {
+		const vaultData = connection.getAccountInfo(SCY_STAKING_VAULT_INFO).then(
+		r => deserializeUnchecked(
+			VaultSchema.schema,
+			r.data,
+			buffer,
+		),
+		error => alert(error)
+
+	);
+
+	console.log(`${vaultData}`);
+	}
+}
+			
 //------------------------Get Account Data-----------------------------------
-async function getVaultDataRaw(connection: Connection): Promise<AccountInfo> {
-	return await connection.getAccountInfo(SCY_STAKING_VAULT_INFO);
-};
 
-export function getVaultData(connection: Connection): VaultData {
-	return getVaultDataRaw(connection).data.deserializeUnchecked();
-};
-
-
-
+export function getStakeData(connection: Connection, staker: PublicKey, buffer: Buffer) {
+	const stakeData = connection.getAccountInfo(staker).then(
+		r => deserializeUnchecked(
+			StakeSchema.schema,
+			r.data,
+			buffer,
+		),
+		error => alert(error)
+	);
+	console.log(`${stakeData}`);
+}
 
 //------------------------Instructions-----------------------------------------
 export class createStakeInstruction {
@@ -102,7 +222,7 @@ export class createStakeInstruction {
 				isSigner: true,
 				isWritable: true,
 			},
-				{
+			{
 				pubkey: stakeInfo,
 				isSigner: false,
 				isWritable: true,
@@ -230,52 +350,52 @@ export class createUnstakeInstruction {
 
 //-----------------------u64 Typscript------------------------------------------
 export class Numberu64 extends BN {
-  /**
-   * Convert to Buffer representation
-   */
-  toBuffer(): Buffer {
-    const a = super.toArray().reverse();
-    const b = Buffer.from(a);
-    if (b.length === 8) {
-      return b;
-    }
-    assert(b.length < 8, "Numberu64 too large");
+	/**
+	 * Convert to Buffer representation
+	 */
+	toBuffer(): Buffer {
+		const a = super.toArray().reverse();
+		const b = Buffer.from(a);
+		if (b.length === 8) {
+			return b;
+		}
+		assert(b.length < 8, "Numberu64 too large");
 
-    const zeroPad = Buffer.alloc(8);
-    b.copy(zeroPad);
-    return zeroPad;
-  }
+		const zeroPad = Buffer.alloc(8);
+		b.copy(zeroPad);
+		return zeroPad;
+	}
 
-  /**
-   * Construct a Numberu64 from Buffer representation
-   */
-  static fromBuffer(buffer): any {
-    assert(buffer.length === 8, `Invalid buffer length: ${buffer.length}`);
-    return new BN(
-      [...buffer]
-        .reverse()
-        .map((i) => `00${i.toString(16)}`.slice(-2))
-        .join(""),
-      16
-    );
-  }
+	/**
+	 * Construct a Numberu64 from Buffer representation
+	 */
+	static fromBuffer(buffer): any {
+		assert(buffer.length === 8, `Invalid buffer length: ${buffer.length}`);
+		return new BN(
+			[...buffer]
+			.reverse()
+			.map((i) => `00${i.toString(16)}`.slice(-2))
+			.join(""),
+			16
+		);
+	}
 }
 
 //------------------------------------------------------------------------------
 export const signAndSendTransactionInstructions = async (
-  // sign and send transaction
-  connection: Connection,
-  signers: Array<Keypair>,
-  feePayer: Keypair,
-  txInstructions: Array<TransactionInstruction>
+	// sign and send transaction
+	connection: Connection,
+	signers: Array<Keypair>,
+	feePayer: Keypair,
+	txInstructions: Array<TransactionInstruction>
 ): Promise<string> => {
-  const tx = new Transaction();
-  tx.feePayer = feePayer.publicKey;
-  signers.push(feePayer);
-  tx.add(...txInstructions);
-  return await connection.sendTransaction(tx, signers, {
-    preflightCommitment: "single",
-  });
+	const tx = new Transaction();
+	tx.feePayer = feePayer.publicKey;
+	signers.push(feePayer);
+	tx.add(...txInstructions);
+	return await connection.sendTransaction(tx, signers, {
+		preflightCommitment: "single",
+	});
 };
 
 export async function findStakeInfoAddress(
@@ -301,17 +421,23 @@ export async function findVaultInfoAddress(): Promise<PublicKey> {
 }
 
 export async function findAssociatedTokenAddress(
-  walletAddress: PublicKey,
-  tokenMintAddress: PublicKey
+	walletAddress: PublicKey,
+	tokenMintAddress: PublicKey
 ): Promise<PublicKey> {
-  return (
-    await PublicKey.findProgramAddress(
-      [
-        walletAddress.toBuffer(),
-        TOKEN_PROGRAM_ID.toBuffer(),
-        tokenMintAddress.toBuffer(),
-      ],
-      ASSOCIATED_TOKEN_PROGRAM_ID
-    )
-  )[0];
+	return (
+		await PublicKey.findProgramAddress(
+			[
+				walletAddress.toBuffer(),
+				TOKEN_PROGRAM_ID.toBuffer(),
+				tokenMintAddress.toBuffer(),
+			],
+			ASSOCIATED_TOKEN_PROGRAM_ID
+		)
+	)[0];
 }
+
+const connection = new Connection(clusterApiUrl('devnet'));
+const providerUrl = "https://www.sollet.io";
+const wallet = new Wallet('devnet', providerUrl);
+wallet.on('connect' publicKey => console.log('cosby'));
+wallet.on('disconnect', () => console.log('hot'));
