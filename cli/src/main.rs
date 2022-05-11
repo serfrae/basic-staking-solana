@@ -487,6 +487,7 @@ fn main() {
 
         println!("Started Staking: {}", stake_data.timestamp);
         println!("Staker Address: {}", stake_data.staker);
+        println!("Staker Info Account: {}", stake_data_pk);
         println!("Mint of Staked Token: {}", stake_data.mint);
         println!("Staking Active: {}", stake_data.active);
         println!(

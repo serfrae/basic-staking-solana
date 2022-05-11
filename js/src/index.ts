@@ -1,16 +1,16 @@
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
 	AccountInfo,
-  Connection,
-  clusterApiUrl,
-  Keypair,
-  PublicKey,
-  SYSVAR_CLOCK_PUBKEY,
-  Transaction,
-  TransactionInstruction,
+	Connection,
+	clusterApiUrl,
+	Keypair,
+	PublicKey,
+	SYSVAR_CLOCK_PUBKEY,
+	Transaction,
+	TransactionInstruction,
 } from "@solana/web3.js";
 import BN from "bn.js";
-import { deserializeUnchecked, Schema, serialize } from "borsh";
+import * as borsh from "borsh";
 import Wallet from "@project-serum/sol-wallet-adapter";
 
 //---------------Pubkeys + Seeds-----------------------------------------======
@@ -18,7 +18,7 @@ import Wallet from "@project-serum/sol-wallet-adapter";
 export const VAULT_SEED = Buffer.from("___vault");
 
 export const ASSOCIATED_TOKEN_PROGRAM_ID: PublicKey = new PublicKey(
-  "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+	"ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
 );
 
 export const SCY_STAKING_PROGRAM_ID: PublicKey = new PublicKey(
@@ -119,31 +119,46 @@ class StakeSchema {
 	}
 }
 
-class VaultSchema {
-	mint: PublicKey
-	minPeriod: Numberu64
-	rewardPeriod: Numberu64
-	rate: Numberu64
-	earlyWithdrawalFee: Numberu64
-	totalObligations: Numberu64
-	totalStaked: Numberu64;
+class Assignable {
+	constructor(properties) {
+        Object.keys(properties).map((key) => {
+            this[key] = properties[key];
+        });
+    }
+}
+class Stake extends Assignable { }
+class Vault extends Assignable {}
 
-	constructor(
-		mint?: PublicKey,
-		minPeriod?: Numberu64,
-		rewardPeriod?: Numberu64,
-		rate?: Numberu64,
-		earlyWithdrawalFee?: Numberu64, 
-		totalObligations?: Numberu64,
-		totalStaked?: Numberu64,
+const SCY_SCHEMA: Map<Function, any> = new Map();
+
+class VaultSchema {
+	mint: PublicKey = SCY_MINT
+	minPeriod: Numberu64 = new Numberu64(3)
+	rewardPeriod: Numberu64 = new Numberu64(1)
+	rate: Numberu64 = new Numberu64(2)
+	earlyWithdrawalFee: Numberu64 = new Numberu64(5)
+	totalObligations: Numberu64 = new Numberu64(0)
+	totalStaked: Numberu64 = new Numberu64(0)
+
+	constructor(fields?: {
+		mint: PublicKey,
+		minPeriod: Numberu64,
+		rewardPeriod: Numberu64,
+		rate: Numberu64,
+		earlyWithdrawalFee: Numberu64, 
+		totalObligations: Numberu64,
+		totalStaked: Numberu64,
+	}
 	){
-		this.mint = mint;
-		this.minPeriod = minPeriod;
-		this.rewardPeriod = rewardPeriod;
-		this.rate = rate;
-		this.earlyWithdrawalFee = earlyWithdrawalFee;
-		this.totalObligations = totalObligations;
-		this.totalStaked = totalStaked;
+		if (fields) {
+		this.mint = fields.mint;
+		this.minPeriod = fields.minPeriod;
+		this.rewardPeriod = fields.rewardPeriod;
+		this.rate = fields.rate;
+		this.earlyWithdrawalFee = fields.earlyWithdrawalFee;
+		this.totalObligations = fields.totalObligations;
+		this.totalStaked = fields.totalStaked;
+		}
 	}
 
 	static schema = new Map([[
@@ -162,36 +177,33 @@ class VaultSchema {
 	]])
 
 	serialize(): Uint8Array {
-		return serialize(VaultSchema.schema, this);
+		return borsh.serialize(VaultSchema.schema, this);
 	}
 
-	async deserialize(connection: Connection, buffer: Buffer) {
-		const vaultData = connection.getAccountInfo(SCY_STAKING_VAULT_INFO).then(
-		r => deserializeUnchecked(
-			VaultSchema.schema,
-			r.data,
-			buffer,
-		),
-		error => alert(error)
+	static async deserialize(connection: Connection) {
+		connection.getAccountInfo(SCY_STAKING_VAULT_INFO).then(
+			r => console.log(`${borsh.deserialize(
+				SCY_SCHEMA,
+				VaultSchema.schema,
+				r.data,
+			)}`),
+			error => alert(error)
 
-	);
-
-	console.log(`${vaultData}`);
+		);
 	}
 }
-			
+
 //------------------------Get Account Data-----------------------------------
 
-export function getStakeData(connection: Connection, staker: PublicKey, buffer: Buffer) {
-	const stakeData = connection.getAccountInfo(staker).then(
-		r => deserializeUnchecked(
+export function getStakeData(connection: Connection, staker: PublicKey) {
+	connection.getAccountInfo(staker).then(
+		r => console.log(`${borsh.deserialize(
+			Stake,
 			StakeSchema.schema,
 			r.data,
-			buffer,
-		),
+		)}`),
 		error => alert(error)
 	);
-	console.log(`${stakeData}`);
 }
 
 //------------------------Instructions-----------------------------------------
@@ -359,7 +371,7 @@ export class Numberu64 extends BN {
 		if (b.length === 8) {
 			return b;
 		}
-		assert(b.length < 8, "Numberu64 too large");
+		//assert(b.length < 8, "Numberu64 too large");
 
 		const zeroPad = Buffer.alloc(8);
 		b.copy(zeroPad);
@@ -370,7 +382,7 @@ export class Numberu64 extends BN {
 	 * Construct a Numberu64 from Buffer representation
 	 */
 	static fromBuffer(buffer): any {
-		assert(buffer.length === 8, `Invalid buffer length: ${buffer.length}`);
+		//assert(buffer.length === 8, `Invalid buffer length: ${buffer.length}`);
 		return new BN(
 			[...buffer]
 			.reverse()
@@ -435,9 +447,3 @@ export async function findAssociatedTokenAddress(
 		)
 	)[0];
 }
-
-const connection = new Connection(clusterApiUrl('devnet'));
-const providerUrl = "https://www.sollet.io";
-const wallet = new Wallet('devnet', providerUrl);
-wallet.on('connect' publicKey => console.log('cosby'));
-wallet.on('disconnect', () => console.log('hot'));
