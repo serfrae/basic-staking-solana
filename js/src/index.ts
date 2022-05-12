@@ -10,8 +10,7 @@ import {
 	TransactionInstruction,
 } from "@solana/web3.js";
 import BN from "bn.js";
-import * as borsh from "borsh";
-import Wallet from "@project-serum/sol-wallet-adapter";
+import { serialize, deserialize, deserializeUnchecked, Schema } from "borsh";
 
 //---------------Pubkeys + Seeds-----------------------------------------======
 
@@ -78,26 +77,6 @@ class StakeSchema {
 	stakedAmount: Numberu64
 	maxReward: Numberu64
 
-	constructor(
-		timestamp?: Numberu64,
-		staker?: PublicKey,
-		mint?: PublicKey,
-		active?: boolean,
-		withdraw?: Numberu64,
-		harvested?: Numberu64,
-		stakedAmount?: Numberu64,
-		maxReward?: Numberu64,
-	) {
-		this.timestamp = timestamp;
-		this.staker = staker;
-		this.mint = mint;
-		this.active = active;
-		this.withdraw = withdraw;
-		this.harvested = harvested;
-		this.stakedAmount = stakedAmount;
-		this.maxReward = maxReward;
-	}
-
 	static schema = new Map([[
 		StakeSchema, { 
 			kind: "struct", 
@@ -114,22 +93,30 @@ class StakeSchema {
 		}
 	]])
 
+	constructor(fields: {
+		timestamp: Numberu64,
+		staker: PublicKey,
+		mint: PublicKey,
+		active: boolean,
+		withdraw: Numberu64,
+		harvested: Numberu64,
+		stakedAmount: Numberu64,
+		maxReward: Numberu64,
+	}) {
+		this.timestamp = fields.timestamp;
+		this.staker = fields.staker;
+		this.mint = fields.mint;
+		this.active = fields.active;
+		this.withdraw = fields.withdraw;
+		this.harvested = fields.harvested;
+		this.stakedAmount = fields.stakedAmount;
+		this.maxReward = fields.maxReward;
+	}
+
 	serialize(): Uint8Array {
 		return serialize(StakeSchema.schema, this);
 	}
 }
-
-class Assignable {
-	constructor(properties) {
-        Object.keys(properties).map((key) => {
-            this[key] = properties[key];
-        });
-    }
-}
-class Stake extends Assignable { }
-class Vault extends Assignable {}
-
-const SCY_SCHEMA: Map<Function, any> = new Map();
 
 class VaultSchema {
 	mint: PublicKey = SCY_MINT
@@ -139,6 +126,21 @@ class VaultSchema {
 	earlyWithdrawalFee: Numberu64 = new Numberu64(5)
 	totalObligations: Numberu64 = new Numberu64(0)
 	totalStaked: Numberu64 = new Numberu64(0)
+
+	static schema = new Map([[
+		VaultSchema, {
+			kind: "struct",
+			fields: [ 
+				['mint', 'u64'],
+				['min_period', 'u64'],
+				['reward_period', 'u64'],
+				['rate', 'u64'],
+				['early_withdrawal_fee', 'u64'],
+				['total_obligations', 'u64'],
+				['total_staked', 'u64']
+			]
+		}
+	]])
 
 	constructor(fields?: {
 		mint: PublicKey,
@@ -161,35 +163,8 @@ class VaultSchema {
 		}
 	}
 
-	static schema = new Map([[
-		VaultSchema, {
-			kind: "struct",
-			fields: [ 
-				['mint', 'u64'],
-				['min_period', 'u64'],
-				['reward_period', 'u64'],
-				['rate', 'u64'],
-				['early_withdrawal_fee', 'u64'],
-				['total_obligations', 'u64'],
-				['total_staked', 'u64']
-			]
-		}
-	]])
-
 	serialize(): Uint8Array {
-		return borsh.serialize(VaultSchema.schema, this);
-	}
-
-	static async deserialize(connection: Connection) {
-		connection.getAccountInfo(SCY_STAKING_VAULT_INFO).then(
-			r => console.log(`${borsh.deserialize(
-				SCY_SCHEMA,
-				VaultSchema.schema,
-				r.data,
-			)}`),
-			error => alert(error)
-
-		);
+		return serialize(VaultSchema.schema, this);
 	}
 }
 
@@ -197,9 +172,20 @@ class VaultSchema {
 
 export function getStakeData(connection: Connection, staker: PublicKey) {
 	connection.getAccountInfo(staker).then(
-		r => console.log(`${borsh.deserialize(
-			Stake,
+		r => console.log(`${deserialize(
 			StakeSchema.schema,
+			StakeSchema,
+			r.data,
+		)}`),
+		error => alert(error)
+	);
+}
+
+export function getVaultData(connection: Connection, staker: PublicKey) {
+	connection.getAccountInfo(staker).then(
+		r => console.log(`${deserialize(
+			StakeSchema.schema,
+			StakeSchema,
 			r.data,
 		)}`),
 		error => alert(error)
