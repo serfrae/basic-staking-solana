@@ -447,6 +447,8 @@ fn main() {
         let client = RpcClient::new_with_commitment(url.to_string(), CommitmentConfig::confirmed());
         let (vault_data_pk, _vault_data_bump) =
             Pubkey::find_program_address(&[VAULT_SEED], &program_id);
+        println!("{:?}", vault_data_pk);
+        println!("{:?}", VAULT_SEED);
         let raw_vault_data = client.get_account_data(&vault_data_pk).unwrap().clone();
         let vault_data = VaultData::try_from_slice(&raw_vault_data[..]).unwrap();
 
