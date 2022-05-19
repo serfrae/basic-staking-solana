@@ -2,22 +2,27 @@
   "name": "test",
   "version": "0.1.0",
   "private": true,
-  "dependencies": {
-    "@project-serum/sol-wallet-adapter": "^0.2.6",
-    "@solana/spl-token": "^0.2.0",
-    "@solana/web3.js": "^1.41.4",
-    "@testing-library/jest-dom": "^5.16.4",
-    "@testing-library/react": "^13.2.0",
-    "@testing-library/user-event": "^13.5.0",
-    "bn.js": "^5.2.0",
-    "borsh": "^0.7.0",
-    "react": "^18.1.0",
-    "react-dom": "^18.1.0",
-    "react-native": "^0.68.1",
-    "react-scripts": "5.0.1",
-    "typescript": "^4.6.4",
-    "web-vitals": "^2.1.4"
-  },
+ "dependencies": {
+  "@solana/buffer-layout": "^4.0.0",
+  "@solana/spl-token": "^0.2.0",
+  "@solana/web3.js": "^1.42.0",
+  "@testing-library/jest-dom": "^5.16.4",
+  "@testing-library/react": "^13.2.0",
+  "@testing-library/user-event": "^13.5.0",
+  "bn.js": "^5.2.0",
+  "borsh": "^0.7.0",
+  "bs58": "^5.0.0",
+  "buffer-layout": "^1.2.2",
+  "react": "^18.1.0",
+  "react-dom": "^18.1.0",
+  "react-scripts": "5.0.1",
+  "tweetnacl": "^1.0.3",
+  "typescript": "^4.6.4",
+  "web-vitals": "^2.1.4"
+ },
+ "devDependencies": {
+  "@types/bn.js": "^5.1.0"
+ },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",

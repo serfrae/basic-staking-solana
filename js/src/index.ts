@@ -93,7 +93,7 @@ class StakeSchema {
 		}
 	]])
 
-	constructor(fields: {
+	constructor(fields?: {
 		timestamp: Numberu64,
 		staker: PublicKey,
 		mint: PublicKey,
@@ -172,11 +172,14 @@ class VaultSchema {
 
 export function getStakeData(connection: Connection, staker: PublicKey) {
 	connection.getAccountInfo(staker).then(
-		r => console.log(`${deserialize(
+		r => {
+			console.log(r);
+			console.log(`${deserialize(
 			StakeSchema.schema,
 			StakeSchema,
 			r.data,
-		)}`),
+		)}`)
+		}, 
 		error => alert(error)
 	);
 }
