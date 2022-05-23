@@ -1,12 +1,12 @@
 import {
-  AccountInfo,
-  Connection,
-  clusterApiUrl,
-  Keypair,
-  PublicKey,
-  SYSVAR_CLOCK_PUBKEY,
-  Transaction,
-  TransactionInstruction,
+	AccountInfo,
+	Connection,
+	clusterApiUrl,
+	Keypair,
+	PublicKey,
+	SYSVAR_CLOCK_PUBKEY,
+	Transaction,
+	TransactionInstruction,
 } from "@solana/web3.js";
 import BN from "bn.js";
 import { deserializeUnchecked, Schema, serialize } from "borsh";
@@ -15,7 +15,7 @@ import { Buffer } from 'buffer';
 export const VAULT_SEED = Buffer.from("___vault");
 
 export const ASSOCIATED_TOKEN_PROGRAM_ID: PublicKey = new PublicKey(
-  "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+	"ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
 );
 
 export const SCY_STAKING_PROGRAM_ID: PublicKey = new PublicKey(
@@ -30,7 +30,7 @@ export const SCY_STAKING_VAULT_INFO: PublicKey = new PublicKey(
 );
 
 export const SCY_STAKING_VAULT_TOKEN_ADDRESS: PublicKey = new PublicKey(
-	"6jgtCz9sgtXoKaJEntnfcLDqJNQTKdWBKHdfM4dpzvKd" //Eb1nFUGyfjYSmmkkgVWyVRtxdnKqujU1LS9tLbhRXuj3
+	"6jgtCz9sgtXoKaJEntnfcLDqJNQTKdWBKHdfM4dpzvKd"
 );
 
 export const TOKEN_PROGRAM_ID: PublicKey = new PublicKey(
@@ -64,7 +64,7 @@ export class Numberu64 extends BN {
 	/**
 	 * Construct a Numberu64 from Buffer representation
 	 */
-	static fromBuffer(buffer): any {
+	static fromBuffer(buffer: Buffer): any {
 		return new BN(
 			[...buffer]
 			.reverse()
@@ -314,133 +314,129 @@ export class createStakeInstruction {
 		});
 	}
 }
-/*
-   export class createUnstakeInstruction {
-   static schema: Schema = new Map([[createUnstakeInstruction, {},],]);
+export class createUnstakeInstruction {
+	static schema: Schema = new Map([[createUnstakeInstruction, {},],]);
 
-   serialize(): Uint8Array {
-   return serialize(createUnstakeInstruction.schema, this);
-   }
+	serialize(): Uint8Array {
+		return serialize(createUnstakeInstruction.schema, this);
+	}
 
-   getInstruction(
-programId: PublicKey,
-staker: PublicKey,
-stakerTokenAccount: PublicKey,
-stakeInfo: PublicKey,
-): TransactionInstruction {
-const data = Buffer.from(this.serialize());
-let keys = [
-{
-pubkey: staker,
-isSigner: true,
-isWritable: true,
-},
-{
-pubkey: stakeInfo,
-isSigner: false,
-isWritable: true,
-},
-{
-pubkey: stakerTokenAccount,
-isSigner: false,
-isWritable: true,
-},
-{
-pubkey: SCY_STAKING_VAULT_INFO,
-isSigner: false,
-isWritable: false,
-},
-{
-pubkey: SCY_STAKING_VAULT_TOKEN_ADDRESS,
-isSigner: false,
-isWritable: true,
-},
-{
-pubkey: TOKEN_PROGRAM_ID,
-isSigner: false,
-isWritable: false,
-},
-{
-pubkey: ASSOCIATED_TOKEN_PROGRAM_ID,
-isSigner: false,
-isWritable: false,
-},
-{
-pubkey: SYSTEM_PROGRAM_ID,
-isSigner: false,
-isWritable: false,
-},
-{
-pubkey: RENT_SYSVAR,
-isSigner: false,
-isWritable: false,
-},
-];
+	getInstruction(
+		programId: PublicKey,
+		staker: PublicKey,
+		stakerTokenAccount: PublicKey,
+		stakeInfo: PublicKey,
+	): TransactionInstruction {
+		const data = Buffer.from(this.serialize());
+		let keys = [
+			{
+				pubkey: staker,
+				isSigner: true,
+				isWritable: true,
+			},
+			{
+				pubkey: stakeInfo,
+				isSigner: false,
+				isWritable: true,
+			},
+			{
+				pubkey: stakerTokenAccount,
+				isSigner: false,
+				isWritable: true,
+			},
+			{
+				pubkey: SCY_STAKING_VAULT_INFO,
+				isSigner: false,
+				isWritable: false,
+			},
+			{
+				pubkey: SCY_STAKING_VAULT_TOKEN_ADDRESS,
+				isSigner: false,
+				isWritable: true,
+			},
+			{
+				pubkey: TOKEN_PROGRAM_ID,
+				isSigner: false,
+				isWritable: false,
+			},
+			{
+				pubkey: ASSOCIATED_TOKEN_PROGRAM_ID,
+				isSigner: false,
+				isWritable: false,
+			},
+			{
+				pubkey: SYSTEM_PROGRAM_ID,
+				isSigner: false,
+				isWritable: false,
+			},
+			{
+				pubkey: RENT_SYSVAR,
+				isSigner: false,
+				isWritable: false,
+			},
+		];
 
-return new TransactionInstruction({
-keys,
-programId: SCY_STAKING_PROGRAM_ID,
-data,
-});
-}
+		return new TransactionInstruction({
+			keys,
+			programId: SCY_STAKING_PROGRAM_ID,
+			data,
+		});
+	}
 }
 
 
 
 //------------------------------------------------------------------------------
 export const signAndSendTransactionInstructions = async (
-		// sign and send transaction
-		connection: Connection,
-		signers: Array<Keypair>,
-		feePayer: Keypair,
-		txInstructions: Array<TransactionInstruction>
-		): Promise<string> => {
+	// sign and send transaction
+	connection: Connection,
+	signers: Array<Keypair>,
+	feePayer: Keypair,
+	txInstructions: Array<TransactionInstruction>
+): Promise<string> => {
 	const tx = new Transaction();
 	tx.feePayer = feePayer.publicKey;
 	signers.push(feePayer);
 	tx.add(...txInstructions);
 	return await connection.sendTransaction(tx, signers, {
-preflightCommitment: "single",
-});
+		preflightCommitment: "single",
+	});
 };
 
 export async function findStakeInfoAddress(
-		walletAddress: PublicKey,
-		): Promise<PublicKey> {
+	walletAddress: PublicKey,
+): Promise<PublicKey> {
 	return (
-			await PublicKey.findProgramAddress(
-				[
+		await PublicKey.findProgramAddress(
+			[
 				walletAddress.toBuffer(),
-				],
-				SCY_STAKING_PROGRAM_ID,
-				)
-		   )[0];
+			],
+			SCY_STAKING_PROGRAM_ID,
+		)
+	)[0];
 }
 
 export async function findVaultInfoAddress(): Promise<PublicKey> {
 	return (
-			await PublicKey.findProgramAddress(
-				[VAULT_SEED], 
-				SCY_STAKING_PROGRAM_ID
-				)
-		   )[0];
+		await PublicKey.findProgramAddress(
+			[VAULT_SEED], 
+			SCY_STAKING_PROGRAM_ID
+		)
+	)[0];
 }
 
 export async function findAssociatedTokenAddress(
-		walletAddress: PublicKey,
-		tokenMintAddress: PublicKey
-		): Promise<PublicKey> {
+	walletAddress: PublicKey,
+	tokenMintAddress: PublicKey
+): Promise<PublicKey> {
 	return (
-			await PublicKey.findProgramAddress(
-				[
+		await PublicKey.findProgramAddress(
+			[
 				walletAddress.toBuffer(),
 				TOKEN_PROGRAM_ID.toBuffer(),
 				tokenMintAddress.toBuffer(),
-				],
-				ASSOCIATED_TOKEN_PROGRAM_ID
-				)
-		   )[0];
+			],
+			ASSOCIATED_TOKEN_PROGRAM_ID
+		)
+	)[0];
 }
-*/
-
-
