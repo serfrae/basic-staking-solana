@@ -218,7 +218,7 @@ export class createStakeInstruction {
 		stakerTokenAccount: PublicKey,
 		stakeInfo: PublicKey,
 	): TransactionInstruction {
-		const data = Buffer.from(this.borsh.serialize());
+		const data = Buffer.from(this.serialize());
 		let keys = [
 			{
 				pubkey: staker,

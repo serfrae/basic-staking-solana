@@ -12,10 +12,6 @@ import BN from "bn.js";
 import { deserializeUnchecked, Schema, serialize } from "borsh";
 import { Buffer } from 'buffer';
 
-
-import * as token from '@solana/spl-token';
-
-
 export const VAULT_SEED = Buffer.from("___vault");
 
 export const ASSOCIATED_TOKEN_PROGRAM_ID: PublicKey = new PublicKey(
@@ -32,10 +28,14 @@ export const SCY_MINT: PublicKey = new PublicKey(
 export const SCY_STAKING_VAULT_INFO: PublicKey = new PublicKey(
 	"2Yf1SfEZwzT342KUT3UCZgKK5kXnLbfUGM6c7DzQFHsn"
 );
-/*
+
 export const SCY_STAKING_VAULT_TOKEN_ADDRESS: PublicKey = new PublicKey(
+	"6jgtCz9sgtXoKaJEntnfcLDqJNQTKdWBKHdfM4dpzvKd" //Eb1nFUGyfjYSmmkkgVWyVRtxdnKqujU1LS9tLbhRXuj3
 );
-*/
+
+export const TOKEN_PROGRAM_ID: PublicKey = new PublicKey(
+	"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+);
 export const RENT_SYSVAR: PublicKey = new PublicKey(
 	"SysvarRent111111111111111111111111111111111"
 );
@@ -231,23 +231,98 @@ export function getStakeData(connection: Connection, staker: PublicKey) {
 	);
 }
 
-/*
 //------------------------Instructions-----------------------------------------
 export class createStakeInstruction {
-amount: Numberu64;
-static schema: Schema = new Map([[createStakeInstruction, {kind: "struct", fields: [["amount", "u64"]]},],]);
+	amount: Numberu64;
+	static schema: Schema = new Map([[createStakeInstruction, {kind: "struct", fields: [["amount", "u64"]]},],]);
 
-constructor(obj: {
-amount: Numberu64;
-}) {
-this.amount = obj.amount;
+	constructor(obj: {
+		amount: Numberu64;
+	}) {
+		this.amount = obj.amount;
+	}
+
+	serialize(): Uint8Array {
+		return serialize(createStakeInstruction.schema, this);
+	}
+
+	getInstruction(
+		programId: PublicKey,
+		staker: PublicKey,
+		stakerTokenAccount: PublicKey,
+		stakeInfo: PublicKey,
+	): TransactionInstruction {
+		const data = Buffer.from(this.serialize());
+		let keys = [
+			{
+				pubkey: staker,
+				isSigner: true,
+				isWritable: true,
+			},
+			{
+				pubkey: stakeInfo,
+				isSigner: false,
+				isWritable: true,
+			},		
+			{
+				pubkey: stakerTokenAccount,
+				isSigner: false,
+				isWritable: true,
+			},
+
+			{
+				pubkey: SCY_STAKING_VAULT_INFO,
+				isSigner: false,
+				isWritable: false,
+			},
+			{
+				pubkey: SCY_STAKING_VAULT_TOKEN_ADDRESS,
+				isSigner: false,
+				isWritable: true,
+			},
+			{
+				pubkey: SCY_MINT,
+				isSigner: false,
+				isWritable: false,
+			},
+			{
+				pubkey: TOKEN_PROGRAM_ID,
+				isSigner: false,
+				isWritable: false,
+			},
+			{
+				pubkey: ASSOCIATED_TOKEN_PROGRAM_ID,
+				isSigner: false,
+				isWritable: false,
+			},
+			{
+				pubkey: SYSTEM_PROGRAM_ID,
+				isSigner: false,
+				isWritable: false,
+			},
+			{
+				pubkey: RENT_SYSVAR,
+				isSigner: false,
+				isWritable: false,
+			},
+		];
+
+		return new TransactionInstruction({
+			keys,
+			programId: SCY_STAKING_PROGRAM_ID,
+			data,
+		});
+	}
 }
+/*
+   export class createUnstakeInstruction {
+   static schema: Schema = new Map([[createUnstakeInstruction, {},],]);
 
-serialize(): Uint8Array {
-return serialize(createStakeInstruction.schema, this);
-}
+   serialize(): Uint8Array {
+   return serialize(createUnstakeInstruction.schema, this);
+   }
 
-getInstruction(
+   getInstruction(
 programId: PublicKey,
 staker: PublicKey,
 stakerTokenAccount: PublicKey,
@@ -264,13 +339,12 @@ isWritable: true,
 pubkey: stakeInfo,
 isSigner: false,
 isWritable: true,
-},		
+},
 {
 pubkey: stakerTokenAccount,
 isSigner: false,
 isWritable: true,
 },
-
 {
 pubkey: SCY_STAKING_VAULT_INFO,
 isSigner: false,
@@ -280,11 +354,6 @@ isWritable: false,
 pubkey: SCY_STAKING_VAULT_TOKEN_ADDRESS,
 isSigner: false,
 isWritable: true,
-},
-{
-pubkey: SCY_MINT,
-isSigner: false,
-isWritable: false,
 },
 {
 pubkey: TOKEN_PROGRAM_ID,
@@ -303,87 +372,17 @@ isWritable: false,
 },
 {
 pubkey: RENT_SYSVAR,
-	isSigner: false,
-	isWritable: false,
-	},
-	];
+isSigner: false,
+isWritable: false,
+},
+];
 
 return new TransactionInstruction({
-		keys,
-		programId: SCY_STAKING_PROGRAM_ID,
-		data,
-		});
+keys,
+programId: SCY_STAKING_PROGRAM_ID,
+data,
+});
 }
-}
-
-export class createUnstakeInstruction {
-	static schema: Schema = new Map([[createUnstakeInstruction, {},],]);
-
-	serialize(): Uint8Array {
-		return serialize(createUnstakeInstruction.schema, this);
-	}
-
-	getInstruction(
-			programId: PublicKey,
-			staker: PublicKey,
-			stakerTokenAccount: PublicKey,
-			stakeInfo: PublicKey,
-			): TransactionInstruction {
-		const data = Buffer.from(this.serialize());
-		let keys = [
-		{
-pubkey: staker,
-			isSigner: true,
-			isWritable: true,
-		},
-		{
-pubkey: stakeInfo,
-		isSigner: false,
-		isWritable: true,
-		},
-		{
-pubkey: stakerTokenAccount,
-		isSigner: false,
-		isWritable: true,
-		},
-		{
-pubkey: SCY_STAKING_VAULT_INFO,
-		isSigner: false,
-		isWritable: false,
-		},
-		{
-pubkey: SCY_STAKING_VAULT_TOKEN_ADDRESS,
-		isSigner: false,
-		isWritable: true,
-		},
-		{
-pubkey: TOKEN_PROGRAM_ID,
-		isSigner: false,
-		isWritable: false,
-		},
-		{
-pubkey: ASSOCIATED_TOKEN_PROGRAM_ID,
-		isSigner: false,
-		isWritable: false,
-		},
-		{
-pubkey: SYSTEM_PROGRAM_ID,
-		isSigner: false,
-		isWritable: false,
-		},
-		{
-pubkey: RENT_SYSVAR,
-		isSigner: false,
-		isWritable: false,
-		},
-		];
-
-		return new TransactionInstruction({
-				keys,
-				programId: SCY_STAKING_PROGRAM_ID,
-				data,
-				});
-	}
 }
 
 

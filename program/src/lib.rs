@@ -115,6 +115,8 @@ pub fn process_instruction(
             let vault_token_account_data = spl_token::state::Account::unpack_from_slice(
                 &vault_token_account_info.data.borrow(),
             )?;
+            //ERROR
+            // ob = overflow, full max u64 + u64 = overflow
             if amount
                 > vault_token_account_data.amount
                     - (vault_data.total_obligations + vault_data.total_staked)
@@ -132,6 +134,11 @@ pub fn process_instruction(
 
             if vault_token_address != *vault_token_account_info.key {
                 return Err(ProgramError::Custom(0x263));
+            }
+
+            if *token_program.key != spl_token::id() {
+                //wrong token_program
+                return Err(ProgramError::Custom(0x345));
             }
 
             invoke_signed(
@@ -237,7 +244,7 @@ pub fn process_instruction(
 
             let elapsed_duration = (clock.unix_timestamp as u64)
                 .checked_sub(stake_data.timestamp)
-                .unwrap();
+                .unwrap(); // unwrap silentfly fail, captiure the failuire
             let n_elapsed_rewards = elapsed_duration
                 .checked_div(vault_data.reward_period)
                 .unwrap();
@@ -290,13 +297,13 @@ pub fn process_instruction(
                 &[&[VAULT_SEED, &[vault_bump]]],
             )?;
 
-            vault_data.total_obligations -= stake_data.max_reward;
-            vault_data.total_staked -= stake_data.staked_amount;
+            vault_data.total_obligations = vault_data.checked_sub(stake_data.max_reward);
+            vault_data.total_staked -= stake_data.staked_amount; //checked sub
             vault_data.serialize(&mut &mut vault_info.data.borrow_mut()[..])?;
 
             stake_data.active = false;
-            stake_data.harvested += reward;
-            stake_data.withdrawn += reward + stake_data.staked_amount;
+            stake_data.harvested += reward; //checked_add
+            stake_data.withdrawn += reward + stake_data.staked_amount; //checked_add
             stake_data.staked_amount = 0;
             stake_data.max_reward = 0;
             stake_data.serialize(&mut &mut stake_info.data.borrow_mut()[..])?;
@@ -310,7 +317,7 @@ pub fn process_instruction(
             let vault_info = next_account_info(accounts_iter)?;
             let vault_token_account_info = next_account_info(accounts_iter)?;
 
-            let mint_info = next_account_info(accounts_iter)?;
+            let mint_info = next_account_info(accounts_iter)?; //CHECK MINFO = MINT
 
             let token_program = next_account_info(accounts_iter)?;
             let token_assoc = next_account_info(accounts_iter)?;
@@ -359,6 +366,9 @@ pub fn process_instruction(
 
             msg!("Stake Safety Checks OK.");
 
+            //SFETY CHECK AUTH == correct!
+
+            ///CHECK THESE ARE NOT WRONG
             if stake_data_info.try_data_is_empty()? {
                 msg!("No staking account found, creating...");
                 let size: u64 = 8 + 32 + 32 + 1 + 8 + 8 + 8 + 8;
@@ -481,8 +491,8 @@ pub fn process_instruction(
                 vault_data.total_obligations -= stake_data.max_reward;
 
                 stake_data.active = true;
-                stake_data.staked_amount += amount + reward;
-                stake_data.max_reward = stake_data.staked_amount.checked_mul(2).unwrap();
+                stake_data.staked_amount += amount + reward; //USE CHECK ADD
+                stake_data.max_reward = stake_data.staked_amount.checked_mul(2).unwrap(); //DONT HARDCO)De
                 stake_data.timestamp = clock.unix_timestamp as u64;
 
                 vault_data.total_staked += amount;
@@ -599,9 +609,14 @@ pub fn process_instruction(
             if vault_token_account != *vault_token_account_info.key {
                 return Err(ProgramError::InvalidAccountData);
             }
+            // safety dance
+            //
+            //check mint info
+            ////chec k token program
+            // admin needs to be upgrade via bpf loader - upgrade authority
 
             if pda.owner != program_id {
-                let size = 32 + 8 + 8 + 8 + 8 + 8 + 8;
+                let size = 32 + 8 + 8 + 8 + 8 + 8 + 8; //I KNOW
 
                 let required_lamports = rent
                     .minimum_balance(size as usize)

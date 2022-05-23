@@ -431,7 +431,7 @@ fn main() {
             ],
         )];
 
-        let mut tx = Transaction::new_with_payer(&instructions, Some(&wallet_pubkey));
+        let mut tx = Transaction::new_with_payer(&instructons, Some(&wallet_pubkey));
         let recent_blockhash = client.get_latest_blockhash().expect("Can't get blockhash");
         tx.sign(&vec![&wallet_keypair], recent_blockhash);
         let id = client.send_transaction(&tx).expect("Transaction failed.");
