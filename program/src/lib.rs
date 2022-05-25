@@ -371,7 +371,7 @@ pub fn process_instruction(
             ///CHECK THESE ARE NOT WRONG
             if stake_data_info.try_data_is_empty()? {
                 msg!("No staking account found, creating...");
-                let size: u64 = 8 + 32 + 32 + 1 + 8 + 8 + 8 + 8;
+                let size: u64 = 8 + 32 + 32 + 1 + 8 + 8 + 8 + 8; // 105
                 if stake_data_info.owner != program_id {
                     let required_lamports = rent
                         .minimum_balance(size as usize)

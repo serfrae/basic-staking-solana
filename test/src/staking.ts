@@ -202,13 +202,25 @@ export function getVaultData(connection: Connection) {
 	console.log(SCY_STAKING_VAULT_INFO.toBase58());
 	connection.getAccountInfo(SCY_STAKING_VAULT_INFO).then(
 		r => {
-			console.log(r);
 			const val = deserializeUnchecked(
 				VaultSchema.schema,
 				VaultSchema,
 				r.data,
 			);
-			console.log(val)
+			console.log(`retrieved val: ${val}`)
+			let seVal = val.serialize();
+			console.log(`serialized val: ${seVal}`);
+			let deVal = deserializeUnchecked(VaultSchema.schema, VaultSchema, Buffer.from(seVal));
+			console.log(`deSeVal ${deVal}`);
+			for (let key in deVal) {
+				console.log(`${key}`);
+				console.log(`${deVal[`${key}`]}`);
+			}
+			if (deVal === val) {
+				console.log("BD POPPINS");
+			} else {
+				console.log("SD Not poppin");
+			}
 		},
 		error => alert(error)
 	);
@@ -219,7 +231,6 @@ export function getStakeData(connection: Connection, staker: PublicKey) {
 	console.log(staker.toBase58());
 	connection.getAccountInfo(staker).then(
 		r => {
-			console.log(r);
 			const val = deserializeUnchecked(
 				StakeSchema.schema,
 				StakeSchema,
@@ -346,7 +357,7 @@ export class createUnstakeInstruction {
 			},
 			{
 				pubkey: SCY_STAKING_VAULT_INFO,
-				isSigner: false,
+				isSigner: false,        
 				isWritable: false,
 			},
 			{

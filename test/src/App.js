@@ -9,7 +9,6 @@ export default function App() {
 	getStakeData(connection, pk);
 	let n64 = new Numberu64(500);
 	let sIx = new createStakeInstruction({amount: n64});
-	console.log(`stakeIx ${sIx}`);
 	sIx.getInstruction();
 
   return (
