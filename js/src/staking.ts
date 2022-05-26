@@ -11,12 +11,9 @@ import {
 import BN from "bn.js";
 import { deserializeUnchecked, Schema, serialize } from "borsh";
 import { Buffer } from 'buffer';
+import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token"
 
 export const VAULT_SEED = Buffer.from("___vault");
-
-export const ASSOCIATED_TOKEN_PROGRAM_ID: PublicKey = new PublicKey(
-	"ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-);
 
 export const SCY_STAKING_PROGRAM_ID: PublicKey = new PublicKey(
 	"titFt4THm4Yv6XY8BDje4vn3eGtCtZkhCXqQhYyDp7W"
@@ -25,17 +22,17 @@ export const SCY_STAKING_PROGRAM_ID: PublicKey = new PublicKey(
 export const SCY_MINT: PublicKey = new PublicKey(
 	"SCYVn1w92poF5VaLf2myVBbTvBf1M8MLqJwpS64Gb9b"
 );
+
+/*
 export const SCY_STAKING_VAULT_INFO: PublicKey = new PublicKey(
 	"2Yf1SfEZwzT342KUT3UCZgKK5kXnLbfUGM6c7DzQFHsn"
 );
+*/
 
 export const SCY_STAKING_VAULT_TOKEN_ADDRESS: PublicKey = new PublicKey(
 	"6jgtCz9sgtXoKaJEntnfcLDqJNQTKdWBKHdfM4dpzvKd"
 );
 
-export const TOKEN_PROGRAM_ID: PublicKey = new PublicKey(
-	"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-);
 export const RENT_SYSVAR: PublicKey = new PublicKey(
 	"SysvarRent111111111111111111111111111111111"
 );
@@ -76,27 +73,6 @@ export class Numberu64 extends BN {
 }
 
 //------------------------Structs----------------------------------------------
-export type StakeData = {
-	timestamp: Numberu64,
-	staker: PublicKey,
-	mint: PublicKey,
-	active: boolean,
-	withdraw: Numberu64,
-	harvested: Numberu64,
-	stakedAmount: Numberu64,
-	maxReward: Numberu64,
-}
-
-export type VaultData = {
-	mint: PublicKey,
-	minPeriod: Numberu64,
-	rewardPeriod: Numberu64,
-	rate: Numberu64,
-	earlyWithdrawalFee: Numberu64,
-	totalObligations: Numberu64,
-	totalStaked: Numberu64,
-}
-
 class StakeSchema {
 	timestamp: Numberu64
 	staker: PublicKey
@@ -146,6 +122,17 @@ class StakeSchema {
 	serialize(): Uint8Array {
 		return serialize(StakeSchema.schema, this);
 	}
+
+	printAll(): void {
+		console.log(`Staking started: ${this.timestamp}`);
+		console.log(`Staker Addr: ${new PublicKey(this.staker)}`);
+		console.log(`Mint of Staked Token: ${new PublicKey(this.mint)}`);
+		console.log(`Staking Active?: ${this.active}`);
+		console.log(`Withdrawn Amount: ${this.withdraw}`);
+		console.log(`Harvested Amount: ${this.harvested}`);
+		console.log(`Staked Amount: ${this.stakedAmount.toNumber() / 10**9}`);
+		console.log(`Maximum Potential Reward: ${this.maxReward.toNumber() / 10**9}`);
+	}
 }
 
 class VaultSchema {
@@ -193,56 +180,64 @@ class VaultSchema {
 	serialize(): Uint8Array {
 		return serialize(VaultSchema.schema, this);
 	}
+
+	printAll(): void {
+		console.log(`Mint Address: ${new PublicKey(this.mint)}`);
+		console.log(`Minimum Period: ${this.minPeriod}`);
+		console.log(`Reward Period: ${this.rewardPeriod}`);
+		console.log(`APR: ${this.rate}`);
+		console.log(`Early Withdrawal Fee: ${this.earlyWithdrawalFee}`);
+		console.log(`Total Obligations: ${this.totalObligations.toNumber() / 10**9}`);
+		console.log(`Total Tokens Staked: ${this.totalStaked.toNumber() / 10**9}`);
+	}
 }
 
 //------------------------Get Account Data-----------------------------------
 
 export function getVaultData(connection: Connection) {
 	console.log("retrieving account data");
-	console.log(SCY_STAKING_VAULT_INFO.toBase58());
-	connection.getAccountInfo(SCY_STAKING_VAULT_INFO).then(
+	findVaultInfoAddress().then(
 		r => {
-			const val = deserializeUnchecked(
-				VaultSchema.schema,
-				VaultSchema,
-				r.data,
+			console.log(r.toBase58())
+			connection.getAccountInfo(r).then(
+
+				r => {
+					const val = deserializeUnchecked(
+						VaultSchema.schema,
+						VaultSchema,
+						r.data,
+					);
+					val.printAll();
+				},
+				error => alert(error)
 			);
-			console.log(`retrieved val: ${val}`)
-			let seVal = val.serialize();
-			console.log(`serialized val: ${seVal}`);
-			let deVal = deserializeUnchecked(VaultSchema.schema, VaultSchema, Buffer.from(seVal));
-			console.log(`deSeVal ${deVal}`);
-			for (let key in deVal) {
-				console.log(`${key}`);
-				console.log(`${deVal[`${key}`]}`);
-			}
-			if (deVal === val) {
-				console.log("BD POPPINS");
-			} else {
-				console.log("SD Not poppin");
-			}
-		},
-		error => alert(error)
-	);
+		});
 }
 
 export function getStakeData(connection: Connection, staker: PublicKey) {
-	console.log("retrieving stake data");
-	console.log(staker.toBase58());
-	connection.getAccountInfo(staker).then(
+	console.log("retrieving stake data")
+	console.log(staker.toBase58())
+	findStakeInfoAddress(staker).then(
 		r => {
-			const val = deserializeUnchecked(
-				StakeSchema.schema,
-				StakeSchema,
-				r.data,
-			);
-			console.log(val);
-		},
-		error => alert(error)
+			console.log("staker info account:");
+			console.log(r.toBase58())
+			connection.getAccountInfo(r).then(
+				r => {
+					const val = deserializeUnchecked(
+						StakeSchema.schema,
+						StakeSchema,
+						r.data,
+					);
+					val.printAll();
+				},
+				error => alert(error)
+			)},
+			error => alert(error)
 	);
 }
 
 //------------------------Instructions-----------------------------------------
+/*
 export class createStakeInstruction {
 	amount: Numberu64;
 	static schema: Schema = new Map([[createStakeInstruction, {kind: "struct", fields: [["amount", "u64"]]},],]);
@@ -282,7 +277,7 @@ export class createStakeInstruction {
 			},
 
 			{
-				pubkey: SCY_STAKING_VAULT_INFO,
+				pubkey: SCY_STAKING_VAULT_INFO, //Need to think about this one
 				isSigner: false,
 				isWritable: false,
 			},
@@ -356,7 +351,7 @@ export class createUnstakeInstruction {
 				isWritable: true,
 			},
 			{
-				pubkey: SCY_STAKING_VAULT_INFO,
+				pubkey: SCY_STAKING_VAULT_INFO, // Need to think about this one too
 				isSigner: false,        
 				isWritable: false,
 			},
@@ -395,7 +390,7 @@ export class createUnstakeInstruction {
 	}
 }
 
-
+*/
 
 //------------------------------------------------------------------------------
 export const signAndSendTransactionInstructions = async (

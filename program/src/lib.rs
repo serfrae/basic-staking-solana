@@ -743,7 +743,6 @@ pub fn process_instruction(
             if *mint_info.key != mint {
                 return Err(ProgramError::Custom(000));
             }
-            // safety dance
 
             // admin needs to be upgrade via bpf loader - upgrade authority
 
