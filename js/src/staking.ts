@@ -124,7 +124,7 @@ class StakeSchema {
 	}
 
 	printAll(): void {
-		console.log(`Staking started: ${this.timestamp}`);
+		console.log(`Staking started: ${convertUnixTime(this.timestamp.toNumber())}`);
 		console.log(`Staker Addr: ${new PublicKey(this.staker)}`);
 		console.log(`Mint of Staked Token: ${new PublicKey(this.mint)}`);
 		console.log(`Staking Active?: ${this.active}`);
@@ -445,4 +445,16 @@ export async function findAssociatedTokenAddress(
 			ASSOCIATED_TOKEN_PROGRAM_ID
 		)
 	)[0];
+}
+
+function convertUnixTime(unix: number) {
+  let a = new Date(unix * 1000),
+      year = a.getFullYear(),
+      months = ['January','February','March','April','May','June','July','August','September','October','November','December'],
+      month = months[a.getMonth()],
+      date = a.getDate(),
+      hour = a.getHours(),
+      min = a.getMinutes() < 10 ? '0' + a.getMinutes() : a.getMinutes(),
+      sec = a.getSeconds() < 10 ? '0' + a.getSeconds() : a.getSeconds();
+  return `${month} ${date}, ${year}, ${hour}:${min}:${sec}`;
 }
