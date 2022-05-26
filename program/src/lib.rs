@@ -20,6 +20,11 @@ const YEAR: u64 = 31_556_926;
 const VAULT_SEED: &[u8; 8] = b"___vault";
 const ADMIN_PK: &str = "CbXeKZ47sfbTxyiAg5h4GLpdrnmzwVXPPihfkN3GiNKk";
 const MINT: &str = "SCYVn1w92poF5VaLf2myVBbTvBf1M8MLqJwpS64Gb9b";
+const DIVISOR: u64 = 20;
+const RATE: u64 = 2;
+const DECIMALS: u8 = 9;
+const STAKE_SIZE: u64 = 9 + 32 + 32 + 1 + 8 + 8 + 8 + 8; //105
+const VAULT_SIZE: u64 = 32 + 8 + 8 + 8 + 8 + 8 + 8; //90
 
 declare_id!("titFt4THm4Yv6XY8BDje4vn3eGtCtZkhCXqQhYyDp7W");
 
@@ -248,25 +253,42 @@ pub fn process_instruction(
                 return Err(ProgramError::Custom(0x108));
             }
 
-            let elapsed_duration = (clock.unix_timestamp as u64)
-                .checked_sub(stake_data.timestamp)
-                .unwrap(); // unwrap silentfly fail, captiure the failuire
-            let n_elapsed_rewards = elapsed_duration
-                .checked_div(vault_data.reward_period)
-                .unwrap();
+            let elapsed_duration =
+                match (clock.unix_timestamp as u64).checked_sub(stake_data.timestamp) {
+                    Some(x) => x,
+                    _ => return Err(ProgramError::Custom(0x109)),
+                };
+
+            let n_elapsed_rewards = match elapsed_duration.checked_div(vault_data.reward_period) {
+                Some(x) => x,
+                _ => return Err(ProgramError::Custom(0x109)),
+            };
 
             let reward_per_period = stake_data
                 .max_reward
                 .checked_div(YEAR.checked_div(vault_data.reward_period).unwrap())
                 .unwrap();
-            //CHECK
-            let reward = n_elapsed_rewards.checked_mul(reward_per_period).unwrap();
-            let mut withdrawal_amount = reward.checked_add(stake_data.staked_amount).unwrap();
+
+            let reward = match n_elapsed_rewards.checked_mul(reward_per_period) {
+                Some(x) => x,
+                _ => return Err(ProgramError::Custom(0x109)),
+            };
+
+            let mut withdrawal_amount = match reward.checked_add(stake_data.staked_amount) {
+                Some(x) => x,
+                _ => return Err(ProgramError::Custom(0x109)),
+            };
 
             let total_withdrawal = if elapsed_duration < vault_data.min_period {
-                withdrawal_amount = withdrawal_amount
-                    .checked_sub(withdrawal_amount.checked_div(20).unwrap())
-                    .unwrap();
+                withdrawal_amount = match withdrawal_amount.checked_sub(
+                    match withdrawal_amount.checked_div(DIVISOR) {
+                        Some(x) => x,
+                        _ => return Err(ProgramError::Custom(0x109)),
+                    },
+                ) {
+                    Some(x) => x,
+                    _ => return Err(ProgramError::Custom(0x109)),
+                };
                 withdrawal_amount
             } else {
                 withdrawal_amount
@@ -303,19 +325,39 @@ pub fn process_instruction(
                 &[&[VAULT_SEED, &[vault_bump]]],
             )?;
 
-            vault_data.total_obligations = vault_data
+            vault_data.total_obligations = match vault_data
                 .total_obligations
                 .checked_sub(stake_data.max_reward)
-                .unwrap();
-            vault_data.total_staked = vault_data
+            {
+                Some(x) => x,
+                _ => return Err(ProgramError::Custom(0x109)),
+            };
+
+            vault_data.total_staked = match vault_data
                 .total_staked
                 .checked_sub(stake_data.staked_amount)
-                .unwrap(); //checked sub
+            {
+                Some(x) => x,
+                _ => return Err(ProgramError::Custom(0x109)),
+            };
+
             vault_data.serialize(&mut &mut vault_info.data.borrow_mut()[..])?;
 
             stake_data.active = false;
-            stake_data.harvested += reward; //checked_add
-            stake_data.withdrawn += reward + stake_data.staked_amount; //checked_add
+            stake_data.harvested = match stake_data.harvested.checked_add(reward) {
+                Some(x) => x,
+                _ => return Err(ProgramError::Custom(0x109)),
+            };
+
+            stake_data.withdrawn = match stake_data.withdrawn.checked_add(
+                match reward.checked_add(stake_data.staked_amount) {
+                    Some(x) => x,
+                    _ => return Err(ProgramError::Custom(0x109)),
+                },
+            ) {
+                Some(x) => x,
+                _ => return Err(ProgramError::Custom(0x109)),
+            };
             stake_data.staked_amount = 0;
             stake_data.max_reward = 0;
             stake_data.serialize(&mut &mut stake_info.data.borrow_mut()[..])?;
@@ -383,7 +425,7 @@ pub fn process_instruction(
             //CHECK THESE ARE NOT WRONG
             if stake_data_info.try_data_is_empty()? {
                 msg!("No staking account found, creating...");
-                let size: u64 = 8 + 32 + 32 + 1 + 8 + 8 + 8 + 8; // 105
+                let size: u64 = STAKE_SIZE;
                 if stake_data_info.owner != program_id {
                     let required_lamports = rent
                         .minimum_balance(size as usize)
@@ -427,8 +469,18 @@ pub fn process_instruction(
                     amount
                 };
 
-                let total_staked = vault_data.total_staked + amount;
-                let total_obligations = vault_data.total_obligations + total_staker_reward;
+                let total_staked = match vault_data.total_staked.checked_add(amount) {
+                    Some(x) => x,
+                    _ => return Err(ProgramError::Custom(0x109)),
+                };
+
+                let total_obligations = match vault_data
+                    .total_obligations
+                    .checked_add(total_staker_reward)
+                {
+                    Some(x) => x,
+                    _ => return Err(ProgramError::Custom(0x109)),
+                };
 
                 if spl_token::state::Account::unpack_from_slice(
                     &vault_token_account_info.data.borrow(),
@@ -447,7 +499,10 @@ pub fn process_instruction(
                     withdrawn: 0,
                     mint,
                     staked_amount: amount,
-                    max_reward: amount.checked_mul(2).unwrap(), // change to rate
+                    max_reward: match amount.checked_mul(RATE) {
+                        Some(x) => x,
+                        _ => return Err(ProgramError::Custom(0x109)),
+                    },
                 };
 
                 vault_data.total_staked = total_staked;
@@ -485,63 +540,106 @@ pub fn process_instruction(
                     return Err(ProgramError::Custom(0x108));
                 }
 
-                let elapsed_duration = (clock.unix_timestamp as u64)
-                    .checked_sub(stake_data.timestamp)
-                    .unwrap();
-                let n_elapsed_rewards = elapsed_duration
-                    .checked_div(vault_data.reward_period)
-                    .unwrap();
+                let elapsed_duration =
+                    match (clock.unix_timestamp as u64).checked_sub(stake_data.timestamp) {
+                        Some(x) => x,
+                        _ => return Err(ProgramError::Custom(0x109)),
+                    };
 
-                let reward_per_period = stake_data
-                    .max_reward
-                    .checked_div(YEAR.checked_div(vault_data.reward_period).unwrap())
-                    .unwrap();
-                //CHECK
-                let reward = n_elapsed_rewards.checked_mul(reward_per_period).unwrap();
+                let n_elapsed_rewards = match elapsed_duration.checked_div(vault_data.reward_period)
+                {
+                    Some(x) => x,
+                    _ => return Err(ProgramError::Custom(0x109)),
+                };
 
-                vault_data.total_staked = vault_data.total_staked.checked_add(reward).unwrap();
-                vault_data.total_obligations = vault_data
+                let reward_per_period = match stake_data.max_reward.checked_div(
+                    match YEAR.checked_div(vault_data.reward_period) {
+                        Some(x) => x,
+                        _ => return Err(ProgramError::Custom(0x109)),
+                    },
+                ) {
+                    Some(x) => x,
+                    _ => return Err(ProgramError::Custom(0x109)),
+                };
+
+                let reward = match n_elapsed_rewards.checked_mul(reward_per_period) {
+                    Some(x) => x,
+                    _ => return Err(ProgramError::Custom(0x109)),
+                };
+
+                vault_data.total_staked = match vault_data.total_staked.checked_add(reward) {
+                    Some(x) => x,
+                    _ => return Err(ProgramError::Custom(0x109)),
+                };
+
+                vault_data.total_obligations = match vault_data
                     .total_obligations
                     .checked_sub(stake_data.max_reward)
-                    .unwrap();
+                {
+                    Some(x) => x,
+                    _ => return Err(ProgramError::Custom(0x109)),
+                };
 
                 stake_data.active = true;
-                stake_data.staked_amount = stake_data
-                    .staked_amount
-                    .checked_add(amount.checked_add(reward).unwrap())
-                    .unwrap(); //USE CHECK ADD
-                stake_data.max_reward = stake_data.staked_amount.checked_mul(2).unwrap(); //DONT HARDCODE
+                stake_data.staked_amount = match stake_data.staked_amount.checked_add(match amount
+                    .checked_add(reward)
+                {
+                    Some(x) => x,
+                    _ => return Err(ProgramError::Custom(0x109)),
+                }) {
+                    Some(x) => x,
+                    _ => return Err(ProgramError::Custom(0x109)),
+                };
+
+                stake_data.max_reward = match stake_data.staked_amount.checked_mul(RATE) {
+                    Some(x) => x,
+                    _ => return Err(ProgramError::Custom(0x109)),
+                };
+
                 stake_data.timestamp = clock.unix_timestamp as u64;
 
-                vault_data.total_staked = vault_data.total_staked.checked_add(amount).unwrap();
-                vault_data.total_obligations = vault_data
+                vault_data.total_staked = match vault_data.total_staked.checked_add(amount) {
+                    Some(x) => x,
+                    _ => return Err(ProgramError::Custom(0x109)),
+                };
+
+                vault_data.total_obligations = match vault_data
                     .total_obligations
                     .checked_add(stake_data.max_reward)
-                    .unwrap();
+                {
+                    Some(x) => x,
+                    _ => return Err(ProgramError::Custom(0x109)),
+                };
 
                 if spl_token::state::Account::unpack_from_slice(
                     &vault_token_account_info.data.borrow(),
                 )?
                 .amount
-                    < (vault_data
+                    < (match vault_data
                         .total_obligations
                         .checked_add(vault_data.total_staked)
-                        .unwrap())
+                    {
+                        Some(x) => x,
+                        _ => return Err(ProgramError::Custom(0x109)),
+                    })
                 {
                     return Err(ProgramError::InsufficientFunds);
                 }
 
                 msg!("periods passed {:?}", n_elapsed_rewards);
-                msg!("reward {:?}", spl_token::amount_to_ui_amount(reward, 9));
+                msg!(
+                    "reward {:?}",
+                    spl_token::amount_to_ui_amount(reward, DECIMALS)
+                );
                 msg!("Already harvested {:?}", stake_data.harvested);
                 msg!(
                     "Max reward {:?}",
-                    spl_token::amount_to_ui_amount(stake_data.max_reward, 9)
+                    spl_token::amount_to_ui_amount(stake_data.max_reward, DECIMALS)
                 );
                 msg!("Already withdrawn {:?}", stake_data.withdrawn);
                 msg!(
                     "final reward {:?}",
-                    spl_token::amount_to_ui_amount(reward, 9)
+                    spl_token::amount_to_ui_amount(reward, DECIMALS)
                 );
                 stake_data.serialize(&mut &mut stake_data_info.data.borrow_mut()[..])?;
                 vault_data.serialize(&mut &mut vault_info.data.borrow_mut()[..])?;
@@ -611,7 +709,7 @@ pub fn process_instruction(
             let payer = next_account_info(accounts_iter)?;
             let pda = next_account_info(accounts_iter)?;
             let vault_token_account_info = next_account_info(accounts_iter)?;
-            let mint = next_account_info(accounts_iter)?;
+            let mint_info = next_account_info(accounts_iter)?;
 
             let token_program = next_account_info(accounts_iter)?;
             let atoken_program = next_account_info(accounts_iter)?;
@@ -623,7 +721,7 @@ pub fn process_instruction(
             let (vault_pda, vault_bump_seed) =
                 Pubkey::find_program_address(&[VAULT_SEED], &program_id);
             let vault_token_account =
-                spl_associated_token_account::get_associated_token_address(&pda.key, mint.key);
+                spl_associated_token_account::get_associated_token_address(&pda.key, mint_info.key);
 
             if pda.key != &vault_pda {
                 //msg!("Wrong account generated by client");
@@ -633,14 +731,24 @@ pub fn process_instruction(
             if vault_token_account != *vault_token_account_info.key {
                 return Err(ProgramError::InvalidAccountData);
             }
+
+            if *token_program.key != spl_token::id() {
+                return Err(ProgramError::IncorrectProgramId);
+            }
+
+            if *atoken_program.key != spl_associated_token_account::id() {
+                return Err(ProgramError::IncorrectProgramId);
+            }
+
+            if *mint_info.key != mint {
+                return Err(ProgramError::Custom(000));
+            }
             // safety dance
-            //
-            //check mint info
-            ////chec k token program
+
             // admin needs to be upgrade via bpf loader - upgrade authority
 
             if pda.owner != program_id {
-                let size = 32 + 8 + 8 + 8 + 8 + 8 + 8; //I KNOW
+                let size = VAULT_SIZE;
 
                 let required_lamports = rent
                     .minimum_balance(size as usize)
@@ -667,13 +775,15 @@ pub fn process_instruction(
 
             invoke(
                 &spl_associated_token_account::create_associated_token_account(
-                    payer.key, &vault_pda, mint.key,
+                    payer.key,
+                    &vault_pda,
+                    mint_info.key,
                 ),
                 &[
                     payer.clone(),
                     vault_token_account_info.clone(),
                     pda.clone(),
-                    mint.clone(),
+                    mint_info.clone(),
                     system_program.clone(),
                     token_program.clone(),
                     rent_info.clone(),
@@ -687,7 +797,7 @@ pub fn process_instruction(
             }
 
             let contract_data = VaultData {
-                mint: *mint.key,
+                mint: *mint_info.key,
                 min_period,
                 reward_period,
                 rate,
