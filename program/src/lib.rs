@@ -115,11 +115,17 @@ pub fn process_instruction(
             let vault_token_account_data = spl_token::state::Account::unpack_from_slice(
                 &vault_token_account_info.data.borrow(),
             )?;
-            //ERROR
-            // ob = overflow, full max u64 + u64 = overflow
+
             if amount
-                > vault_token_account_data.amount
-                    - (vault_data.total_obligations + vault_data.total_staked)
+                > vault_token_account_data
+                    .amount
+                    .checked_sub(
+                        (vault_data
+                            .total_obligations
+                            .checked_add(vault_data.total_staked))
+                        .unwrap(),
+                    )
+                    .unwrap()
             {
                 return Err(ProgramError::InsufficientFunds);
             }
@@ -297,8 +303,14 @@ pub fn process_instruction(
                 &[&[VAULT_SEED, &[vault_bump]]],
             )?;
 
-            vault_data.total_obligations = vault_data.checked_sub(stake_data.max_reward);
-            vault_data.total_staked -= stake_data.staked_amount; //checked sub
+            vault_data.total_obligations = vault_data
+                .total_obligations
+                .checked_sub(stake_data.max_reward)
+                .unwrap();
+            vault_data.total_staked = vault_data
+                .total_staked
+                .checked_sub(stake_data.staked_amount)
+                .unwrap(); //checked sub
             vault_data.serialize(&mut &mut vault_info.data.borrow_mut()[..])?;
 
             stake_data.active = false;
@@ -368,7 +380,7 @@ pub fn process_instruction(
 
             //SFETY CHECK AUTH == correct!
 
-            ///CHECK THESE ARE NOT WRONG
+            //CHECK THESE ARE NOT WRONG
             if stake_data_info.try_data_is_empty()? {
                 msg!("No staking account found, creating...");
                 let size: u64 = 8 + 32 + 32 + 1 + 8 + 8 + 8 + 8; // 105
@@ -487,22 +499,34 @@ pub fn process_instruction(
                 //CHECK
                 let reward = n_elapsed_rewards.checked_mul(reward_per_period).unwrap();
 
-                vault_data.total_staked += reward;
-                vault_data.total_obligations -= stake_data.max_reward;
+                vault_data.total_staked = vault_data.total_staked.checked_add(reward).unwrap();
+                vault_data.total_obligations = vault_data
+                    .total_obligations
+                    .checked_sub(stake_data.max_reward)
+                    .unwrap();
 
                 stake_data.active = true;
-                stake_data.staked_amount += amount + reward; //USE CHECK ADD
-                stake_data.max_reward = stake_data.staked_amount.checked_mul(2).unwrap(); //DONT HARDCO)De
+                stake_data.staked_amount = stake_data
+                    .staked_amount
+                    .checked_add(amount.checked_add(reward).unwrap())
+                    .unwrap(); //USE CHECK ADD
+                stake_data.max_reward = stake_data.staked_amount.checked_mul(2).unwrap(); //DONT HARDCODE
                 stake_data.timestamp = clock.unix_timestamp as u64;
 
-                vault_data.total_staked += amount;
-                vault_data.total_obligations += stake_data.max_reward;
+                vault_data.total_staked = vault_data.total_staked.checked_add(amount).unwrap();
+                vault_data.total_obligations = vault_data
+                    .total_obligations
+                    .checked_add(stake_data.max_reward)
+                    .unwrap();
 
                 if spl_token::state::Account::unpack_from_slice(
                     &vault_token_account_info.data.borrow(),
                 )?
                 .amount
-                    < (vault_data.total_obligations + vault_data.total_staked)
+                    < (vault_data
+                        .total_obligations
+                        .checked_add(vault_data.total_staked)
+                        .unwrap())
                 {
                     return Err(ProgramError::InsufficientFunds);
                 }
