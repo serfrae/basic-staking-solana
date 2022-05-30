@@ -31,6 +31,8 @@ export const SYSTEM_PROGRAM_ID: PublicKey = new PublicKey(
 	"11111111111111111111111111111111"
 );
 
+const TEST_SECRET_KEY: Keypair = Keypair.fromSecretKey(new Uint8Array([140,11,48,132,102,61,141,103,238,228,225,211,121,188,193,204,67,117,4,8,81,242,172,156,59,181,210,198,151,226,82,64,172,72,243,205,110,113,123,6,18,104,125,0,69,127,93,157,177,124,59,218,5,41,149,83,32,76,203,251,3,70,72,139]));
+
 //-----------------------u64 Typscript------------------------------------------
 export class Numberu64 extends BN {
 	/**
@@ -185,10 +187,9 @@ class VaultSchema {
 //------------------------Get Account Data-----------------------------------
 
 export function getVaultData(connection: Connection) {
-	console.log("retrieving account data");
 	findVaultInfoAddress().then(
 		r => {
-			console.log(r.toBase58())
+			console.log(`Vault Info Addr: ${r.toBase58()}`)
 			connection.getAccountInfo(r).then(
 
 				r => {
@@ -205,12 +206,10 @@ export function getVaultData(connection: Connection) {
 }
 
 export function getStakeData(connection: Connection, staker: PublicKey) {
-	console.log("retrieving stake data")
-	console.log(staker.toBase58())
+	console.log(`Staker Addr: ${staker.toBase58()}`)
 	findStakeInfoAddress(staker).then(
 		r => {
-			console.log("staker info account:");
-			console.log(r.toBase58())
+			console.log(`Staker Info Addr ${r.toBase58()}`)
 			connection.getAccountInfo(r).then(
 				r => {
 					const val = deserializeUnchecked(
@@ -245,6 +244,7 @@ export class createStakeInstruction {
 	async getInstruction(
 		staker: PublicKey,
 	): Promise<TransactionInstruction> {
+		console.log(`PK: ${TEST_SECRET_KEY.publicKey}`);
 		const vaultInfoAddr = await findVaultInfoAddress();
 		const stakeInfoAddr = await findStakeInfoAddress(staker);
 		const stakerTokenAddr = await findAssociatedTokenAddress(staker, SCY_MINT);
@@ -395,12 +395,13 @@ export const signAndSendTransactionInstructions = async (
 	txInstructions: Array<TransactionInstruction>
 ): Promise<string> => {
 	const tx = new Transaction();
+	console.log(tx);
 	tx.feePayer = feePayer.publicKey;
+	console.log(tx.feePayer);
 	signers.push(feePayer);
 	tx.add(...txInstructions);
-	return await connection.sendTransaction(tx, signers, {
-		preflightCommitment: "single",
-	});
+	console.log(tx);
+	return await connection.sendTransaction(tx, signers);
 };
 
 export async function findStakeInfoAddress(
@@ -451,4 +452,16 @@ function convertUnixTime(unix: number) {
       min = a.getMinutes() < 10 ? '0' + a.getMinutes() : a.getMinutes(),
       sec = a.getSeconds() < 10 ? '0' + a.getSeconds() : a.getSeconds();
   return `${month} ${date}, ${year}, ${hour}:${min}:${sec}`;
+}
+
+export async function getAndCreateInstruction(amount: Numberu64, staker: PublicKey, connection: Connection) {
+	let ix = new createStakeInstruction({amount: amount});
+	let ixFinal = await ix.getInstruction(staker);
+	let ixArr = [];
+	let signers = [];
+	signers.push(TEST_SECRET_KEY);
+	let feePayer = TEST_SECRET_KEY;
+	ixArr.push(ixFinal);
+	let sig = await signAndSendTransactionInstructions(connection, signers, feePayer, ixArr);
+	console.log(sig);
 }

@@ -424,8 +424,6 @@ pub fn process_instruction(
 
             msg!("Stake Safety Checks OK.");
 
-            //SFETY CHECK AUTH == correct!
-
             //CHECK THESE ARE NOT WRONG
             if stake_data_info.try_data_is_empty()? {
                 msg!("No staking account found, creating...");
@@ -486,11 +484,15 @@ pub fn process_instruction(
                     _ => return Err(ProgramError::Custom(0x109)),
                 };
 
+                // TODO
                 if spl_token::state::Account::unpack_from_slice(
                     &vault_token_account_info.data.borrow(),
                 )?
                 .amount
-                    < (total_obligations + total_staked)
+                    < (match total_obligations.checked_add(total_staked) {
+                        Some(x) => x,
+                        _ => return Err(ProgramError::Custom(0x109)),
+                    })
                 {
                     return Err(ProgramError::InsufficientFunds);
                 }

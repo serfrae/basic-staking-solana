@@ -324,6 +324,7 @@ fn main() {
         let (vault, _vault_bump) = Pubkey::find_program_address(&[VAULT_SEED], &program_id);
         let staker_token_account =
             spl_associated_token_account::get_associated_token_address(&wallet_pubkey, &mint_pk);
+        println!("Staker Token Account: {}", staker_token_account);
         let vault_token_account =
             spl_associated_token_account::get_associated_token_address(&vault, &mint_pk);
         println!("Vault Token Account: {}", vault_token_account);
@@ -431,7 +432,7 @@ fn main() {
             ],
         )];
 
-        let mut tx = Transaction::new_with_payer(&instructons, Some(&wallet_pubkey));
+        let mut tx = Transaction::new_with_payer(&instructions, Some(&wallet_pubkey));
         let recent_blockhash = client.get_latest_blockhash().expect("Can't get blockhash");
         tx.sign(&vec![&wallet_keypair], recent_blockhash);
         let id = client.send_transaction(&tx).expect("Transaction failed.");
