@@ -303,7 +303,7 @@ pub fn process_instruction(
             );
             msg!("already withdrawn {:?}", stake_data.withdrawn);
             msg!(
-                "rinal reward {:?}",
+                "final reward {:?}",
                 spl_token::amount_to_ui_amount(reward, 9)
             );
 
@@ -416,6 +416,10 @@ pub fn process_instruction(
 
             if vault_token_address != *vault_token_account_info.key {
                 return Err(ProgramError::Custom(0x63));
+            }
+
+            if *mint_info.key != mint {
+                return Err(ProgramError::Custom(0x64));
             }
 
             msg!("Stake Safety Checks OK.");

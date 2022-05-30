@@ -23,16 +23,6 @@ export const SCY_MINT: PublicKey = new PublicKey(
 	"SCYVn1w92poF5VaLf2myVBbTvBf1M8MLqJwpS64Gb9b"
 );
 
-/*
-export const SCY_STAKING_VAULT_INFO: PublicKey = new PublicKey(
-	"2Yf1SfEZwzT342KUT3UCZgKK5kXnLbfUGM6c7DzQFHsn"
-);
-*/
-
-export const SCY_STAKING_VAULT_TOKEN_ADDRESS: PublicKey = new PublicKey(
-	"6jgtCz9sgtXoKaJEntnfcLDqJNQTKdWBKHdfM4dpzvKd"
-);
-
 export const RENT_SYSVAR: PublicKey = new PublicKey(
 	"SysvarRent111111111111111111111111111111111"
 );
@@ -237,7 +227,7 @@ export function getStakeData(connection: Connection, staker: PublicKey) {
 }
 
 //------------------------Instructions-----------------------------------------
-/*
+
 export class createStakeInstruction {
 	amount: Numberu64;
 	static schema: Schema = new Map([[createStakeInstruction, {kind: "struct", fields: [["amount", "u64"]]},],]);
@@ -252,12 +242,14 @@ export class createStakeInstruction {
 		return serialize(createStakeInstruction.schema, this);
 	}
 
-	getInstruction(
-		programId: PublicKey,
+	async getInstruction(
 		staker: PublicKey,
-		stakerTokenAccount: PublicKey,
-		stakeInfo: PublicKey,
-	): TransactionInstruction {
+	): Promise<TransactionInstruction> {
+		const vaultInfoAddr = await findVaultInfoAddress();
+		const stakeInfoAddr = await findStakeInfoAddress(staker);
+		const stakerTokenAddr = await findAssociatedTokenAddress(staker, SCY_MINT);
+		const vaultTokenAddr = await findAssociatedTokenAddress(SCY_STAKING_PROGRAM_ID, SCY_MINT);
+
 		const data = Buffer.from(this.serialize());
 		let keys = [
 			{
@@ -266,23 +258,23 @@ export class createStakeInstruction {
 				isWritable: true,
 			},
 			{
-				pubkey: stakeInfo,
+				pubkey: stakeInfoAddr,
 				isSigner: false,
 				isWritable: true,
 			},		
 			{
-				pubkey: stakerTokenAccount,
+				pubkey: stakerTokenAddr,
 				isSigner: false,
 				isWritable: true,
 			},
 
 			{
-				pubkey: SCY_STAKING_VAULT_INFO, //Need to think about this one
+				pubkey: vaultInfoAddr,
 				isSigner: false,
 				isWritable: false,
 			},
 			{
-				pubkey: SCY_STAKING_VAULT_TOKEN_ADDRESS,
+				pubkey: vaultTokenAddr,
 				isSigner: false,
 				isWritable: true,
 			},
@@ -327,12 +319,16 @@ export class createUnstakeInstruction {
 		return serialize(createUnstakeInstruction.schema, this);
 	}
 
-	getInstruction(
-		programId: PublicKey,
+	// Cant pass values from promises up a call chain
+	// Call get instruction after a getStakeData call
+	async getInstruction(
 		staker: PublicKey,
-		stakerTokenAccount: PublicKey,
-		stakeInfo: PublicKey,
-	): TransactionInstruction {
+	): Promise<TransactionInstruction> {
+		const vaultInfoAddr = await findVaultInfoAddress();
+		const stakeInfoAddr = await findStakeInfoAddress(staker);
+		const stakerTokenAddr = await findAssociatedTokenAddress(staker, SCY_MINT);
+		const vaultTokenAddr = await findAssociatedTokenAddress(SCY_STAKING_PROGRAM_ID, SCY_MINT);
+		
 		const data = Buffer.from(this.serialize());
 		let keys = [
 			{
@@ -341,22 +337,22 @@ export class createUnstakeInstruction {
 				isWritable: true,
 			},
 			{
-				pubkey: stakeInfo,
+				pubkey: stakeInfoAddr,
 				isSigner: false,
 				isWritable: true,
 			},
 			{
-				pubkey: stakerTokenAccount,
+				pubkey: stakerTokenAddr,
 				isSigner: false,
 				isWritable: true,
 			},
 			{
-				pubkey: SCY_STAKING_VAULT_INFO, // Need to think about this one too
+				pubkey: vaultInfoAddr, 
 				isSigner: false,        
 				isWritable: false,
 			},
 			{
-				pubkey: SCY_STAKING_VAULT_TOKEN_ADDRESS,
+				pubkey: vaultTokenAddr,
 				isSigner: false,
 				isWritable: true,
 			},
@@ -389,8 +385,6 @@ export class createUnstakeInstruction {
 		});
 	}
 }
-
-*/
 
 //------------------------------------------------------------------------------
 export const signAndSendTransactionInstructions = async (
