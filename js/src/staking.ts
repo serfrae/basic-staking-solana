@@ -341,8 +341,7 @@ export class createUnstakeInstruction {
 		const vaultTokenAddr = await findAssociatedTokenAddress(vaultInfoAddr, SCY_MINT);
 		
 
-		const dataIx = Buffer.from(this.serialize());
-		const data = Buffer.from(Uint8Array.of(1, ...dataIx));
+		const data = Buffer.from(Uint8Array.of(2));
 
 		let keys = [
 			{
@@ -371,22 +370,12 @@ export class createUnstakeInstruction {
 				isWritable: true,
 			},
 			{
+				pubkey: SCY_MINT,
+				isSigner: false,
+				isWritable: false,
+			},
+			{
 				pubkey: TOKEN_PROGRAM_ID,
-				isSigner: false,
-				isWritable: false,
-			},
-			{
-				pubkey: ASSOCIATED_TOKEN_PROGRAM_ID,
-				isSigner: false,
-				isWritable: false,
-			},
-			{
-				pubkey: SYSTEM_PROGRAM_ID,
-				isSigner: false,
-				isWritable: false,
-			},
-			{
-				pubkey: RENT_SYSVAR,
 				isSigner: false,
 				isWritable: false,
 			},
@@ -412,12 +401,7 @@ export const signAndSendTransactionInstructions = async (
 	tx.feePayer = feePayer.publicKey;
 	signers.push(feePayer);
 	tx.add(...txInstructions);
-	/*
-	const blockhash = await connection.getLatestBlockhash();
-	console.log(blockhash);
-	tx.recentBlockhash = blockhash.blockhash;
-	tx.addSignature(feePayer.publicKey, Buffer.from(new Uint8Array([140,11,48,132,102,61,141,103,238,228,225,211,121,188,193,204,67,117,4,8,81,242,172,156,59,181,210,198,151,226,82,64,172,72,243,205,110,113,123,6,18,104,125,0,69,127,93,157,177,124,59,218,5,41,149,83,32,76,203,251,3,70,72,139])));
-	*/
+
 	console.log(`TX: ${tx}`);
 
 	console.log(tx.signatures);
@@ -482,6 +466,18 @@ function convertUnixTime(unix: number) {
 
 export async function getAndCreateInstruction(amount: Numberu64, staker: PublicKey, connection: Connection) {
 	let ix = new createStakeInstruction({amount: amount});
+	let ixFinal = await ix.getInstruction(staker);
+	let ixArr = [];
+	let signers = [];
+	signers.push(TEST_SECRET_KEY);
+	let feePayer = TEST_SECRET_KEY;
+	ixArr.push(ixFinal);
+	let sig = await signAndSendTransactionInstructions(connection, signers, feePayer, ixArr);
+	console.log(sig);
+}
+
+export async function getAndCreateUnstakeIx(staker: PublicKey, connection: Connection) {
+	let ix = new createUnstakeInstruction();
 	let ixFinal = await ix.getInstruction(staker);
 	let ixArr = [];
 	let signers = [];
