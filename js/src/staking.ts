@@ -31,7 +31,7 @@ export const SYSTEM_PROGRAM_ID: PublicKey = new PublicKey(
 	"11111111111111111111111111111111"
 );
 
-const TEST_SECRET_KEY: Keypair = Keypair.fromSecretKey(new Uint8Array([140,11,48,132,102,61,141,103,238,228,225,211,121,188,193,204,67,117,4,8,81,242,172,156,59,181,210,198,151,226,82,64,172,72,243,205,110,113,123,6,18,104,125,0,69,127,93,157,177,124,59,218,5,41,149,83,32,76,203,251,3,70,72,139]));
+const TEST_SECRET_KEY: Keypair = Keypair.fromSecretKey(new Uint8Array([148,243,20,141,233,131,50,169,169,1,194,236,44,143,74,50,219,65,236,1,84,184,154,48,106,63,15,56,172,11,249,93,8,123,255,254,3,246,62,130,32,140,151,230,223,53,102,45,171,254,223,247,137,80,248,59,206,141,156,206,127,65,202,54]));
 
 //-----------------------u64 Typscript------------------------------------------
 export class Numberu64 extends BN {
@@ -226,6 +226,11 @@ export function getStakeData(connection: Connection, staker: PublicKey) {
 }
 
 //------------------------Instructions-----------------------------------------
+//
+
+export class StakeInstruction {
+
+}
 
 export class createStakeInstruction {
 	amount: Numberu64;
@@ -241,6 +246,10 @@ export class createStakeInstruction {
 		return serialize(createStakeInstruction.schema, this);
 	}
 
+	deserialize(data: Buffer): createStakeInstruction {
+			return deserializeUnchecked(createStakeInstruction.schema, createStakeInstruction, data);
+	}
+
 	async getInstruction(
 		staker: PublicKey,
 	): Promise<TransactionInstruction> {
@@ -248,9 +257,11 @@ export class createStakeInstruction {
 		const vaultInfoAddr = await findVaultInfoAddress();
 		const stakeInfoAddr = await findStakeInfoAddress(staker);
 		const stakerTokenAddr = await findAssociatedTokenAddress(staker, SCY_MINT);
-		const vaultTokenAddr = await findAssociatedTokenAddress(SCY_STAKING_PROGRAM_ID, SCY_MINT);
+		const vaultTokenAddr = await findAssociatedTokenAddress(vaultInfoAddr, SCY_MINT);
 
-		const data = Buffer.from(this.serialize());
+		const dataIx = Buffer.from(this.serialize());
+		const data = Buffer.from(Uint8Array.of(1, ...dataIx));
+		
 		let keys = [
 			{
 				pubkey: staker,
@@ -271,7 +282,7 @@ export class createStakeInstruction {
 			{
 				pubkey: vaultInfoAddr,
 				isSigner: false,
-				isWritable: false,
+				isWritable: true,
 			},
 			{
 				pubkey: vaultTokenAddr,
@@ -330,6 +341,7 @@ export class createUnstakeInstruction {
 		const vaultTokenAddr = await findAssociatedTokenAddress(SCY_STAKING_PROGRAM_ID, SCY_MINT);
 		
 		const data = Buffer.from(this.serialize());
+		console.log(`DATA: ${data}`);
 		let keys = [
 			{
 				pubkey: staker,
@@ -395,12 +407,24 @@ export const signAndSendTransactionInstructions = async (
 	txInstructions: Array<TransactionInstruction>
 ): Promise<string> => {
 	const tx = new Transaction();
-	console.log(tx);
 	tx.feePayer = feePayer.publicKey;
-	console.log(tx.feePayer);
 	signers.push(feePayer);
 	tx.add(...txInstructions);
-	console.log(tx);
+	/*
+	const blockhash = await connection.getLatestBlockhash();
+	console.log(blockhash);
+	tx.recentBlockhash = blockhash.blockhash;
+	tx.addSignature(feePayer.publicKey, Buffer.from(new Uint8Array([140,11,48,132,102,61,141,103,238,228,225,211,121,188,193,204,67,117,4,8,81,242,172,156,59,181,210,198,151,226,82,64,172,72,243,205,110,113,123,6,18,104,125,0,69,127,93,157,177,124,59,218,5,41,149,83,32,76,203,251,3,70,72,139])));
+	*/
+	console.log(`TX: ${tx}`);
+
+	console.log(tx.signatures);
+	console.log(tx.feePayer);
+	console.log(tx.recentBlockhash);
+	console.log(tx.lastValidBlockHeight);
+	console.log(tx.nonceInfo);
+	console.log(tx.instructions);
+
 	return await connection.sendTransaction(tx, signers);
 };
 
