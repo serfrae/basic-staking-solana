@@ -338,10 +338,12 @@ export class createUnstakeInstruction {
 		const vaultInfoAddr = await findVaultInfoAddress();
 		const stakeInfoAddr = await findStakeInfoAddress(staker);
 		const stakerTokenAddr = await findAssociatedTokenAddress(staker, SCY_MINT);
-		const vaultTokenAddr = await findAssociatedTokenAddress(SCY_STAKING_PROGRAM_ID, SCY_MINT);
+		const vaultTokenAddr = await findAssociatedTokenAddress(vaultInfoAddr, SCY_MINT);
 		
-		const data = Buffer.from(this.serialize());
-		console.log(`DATA: ${data}`);
+
+		const dataIx = Buffer.from(this.serialize());
+		const data = Buffer.from(Uint8Array.of(1, ...dataIx));
+
 		let keys = [
 			{
 				pubkey: staker,
@@ -361,7 +363,7 @@ export class createUnstakeInstruction {
 			{
 				pubkey: vaultInfoAddr, 
 				isSigner: false,        
-				isWritable: false,
+				isWritable: true,
 			},
 			{
 				pubkey: vaultTokenAddr,
