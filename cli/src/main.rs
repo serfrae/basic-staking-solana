@@ -25,11 +25,11 @@ use solana_sdk::transaction::Transaction;
 use spl_associated_token_account;
 use spl_token;
 
-const PROGRAM_ID: &str = "titFt4THm4Yv6XY8BDje4vn3eGtCtZkhCXqQhYyDp7W";
+const PROGRAM_ID: &str = "SCYBRhsVKNUvM7JKnXHBYMBLmt6cbichmT8iugAcsmU";
 const VAULT_SEED: &[u8; 8] = b"___vault";
-const MINT: &str = "SCYVn1w92poF5VaLf2myVBbTvBf1M8MLqJwpS64Gb9b";
+const MINT: &str = "SCYfrGCw8aDiqdgcpdGjV6jp4UVVQLuphxTDLNWu36f";
 #[allow(dead_code)]
-const ADMIN_PK: &str = "CbXeKZ47sfbTxyiAg5h4GLpdrnmzwVXPPihfkN3GiNKk";
+const ADMIN_PK: &str = "SCYXfY5QqYihdX931asDQcRuury6NFL6WtX3UsWbdCz";
 
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, BorshSchema)]
 enum StakeInstruction {

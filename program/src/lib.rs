@@ -18,15 +18,15 @@ use spl_token;
 
 const YEAR: u64 = 31_556_926;
 const VAULT_SEED: &[u8; 8] = b"___vault";
-const ADMIN_PK: &str = "CbXeKZ47sfbTxyiAg5h4GLpdrnmzwVXPPihfkN3GiNKk";
-const MINT: &str = "SCYVn1w92poF5VaLf2myVBbTvBf1M8MLqJwpS64Gb9b";
+const ADMIN_PK: &str = "";
+const MINT: &str = "";
 const DIVISOR: u64 = 20;
 const RATE: u64 = 2;
 const DECIMALS: u8 = 9;
 const STAKE_SIZE: u64 = 9 + 32 + 32 + 1 + 8 + 8 + 8 + 8; //105
 const VAULT_SIZE: u64 = 32 + 8 + 8 + 8 + 8 + 8 + 8; //90
 
-declare_id!("titFt4THm4Yv6XY8BDje4vn3eGtCtZkhCXqQhYyDp7W");
+declare_id!("");
 
 // Declare and export the program's entrypoint
 entrypoint!(process_instruction);
@@ -84,7 +84,7 @@ pub fn process_instruction(
     instruction_data: &[u8],
 ) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
-    let instruction: StakeInstruction = try_from_slice_unchecked(instruction_data).unwrap();
+    let instruction: StakeInstruction = try_from_slice_unchecked(instruction_data).unwrap(); //DONT UNWRAP
 
     let admin = ADMIN_PK.parse::<Pubkey>().unwrap();
     let mint = MINT.parse::<Pubkey>().unwrap();
@@ -121,6 +121,7 @@ pub fn process_instruction(
                 &vault_token_account_info.data.borrow(),
             )?;
 
+            // DONT UNWRAP
             if amount
                 > vault_token_account_data
                     .amount
@@ -364,9 +365,9 @@ pub fn process_instruction(
         }
 
         StakeInstruction::Stake { amount } => {
-            let staker = next_account_info(accounts_iter)?;
-            let stake_data_info = next_account_info(accounts_iter)?;
-            let staker_token_account_info = next_account_info(accounts_iter)?;
+            let staker = next_account_info(accounts_iter)?; //SOLANA WALLET
+            let stake_data_info = next_account_info(accounts_iter)?; // COMPUTED BY SCY
+            let staker_token_account_info = next_account_info(accounts_iter)?; // COMPUTED BY SPL-TOKEN
 
             let vault_info = next_account_info(accounts_iter)?;
             let vault_token_account_info = next_account_info(accounts_iter)?;
@@ -471,10 +472,7 @@ pub fn process_instruction(
                     amount
                 };
 
-                let total_staked = match vault_data.total_staked.checked_add(amount) {
-                    Some(x) => x,
-                    _ => return Err(ProgramError::Custom(0x109)),
-                };
+                let total_staked = vault_data.total_staked.checked_add(amount).unwrap();
 
                 let total_obligations = match vault_data
                     .total_obligations
@@ -747,7 +745,7 @@ pub fn process_instruction(
             }
 
             if *mint_info.key != mint {
-                return Err(ProgramError::Custom(000));
+                return Err(ProgramError::Custom(0x00));
             }
 
             // admin needs to be upgrade via bpf loader - upgrade authority

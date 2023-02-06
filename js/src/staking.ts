@@ -16,11 +16,11 @@ import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token
 export const VAULT_SEED = Buffer.from("___vault");
 
 export const SCY_STAKING_PROGRAM_ID: PublicKey = new PublicKey(
-	"titFt4THm4Yv6XY8BDje4vn3eGtCtZkhCXqQhYyDp7W"
+	"SCYBRhsVKNUvM7JKnXHBYMBLmt6cbichmT8iugAcsmU"
 );
 
 export const SCY_MINT: PublicKey = new PublicKey(
-	"SCYVn1w92poF5VaLf2myVBbTvBf1M8MLqJwpS64Gb9b"
+	"SCYfrGCw8aDiqdgcpdGjV6jp4UVVQLuphxTDLNWu36f"
 );
 
 export const RENT_SYSVAR: PublicKey = new PublicKey(
@@ -30,6 +30,8 @@ export const RENT_SYSVAR: PublicKey = new PublicKey(
 export const SYSTEM_PROGRAM_ID: PublicKey = new PublicKey(
 	"11111111111111111111111111111111"
 );
+
+const YEAR: number = 31556926;
 
 const TEST_SECRET_KEY: Keypair = Keypair.fromSecretKey(new Uint8Array([148,243,20,141,233,131,50,169,169,1,194,236,44,143,74,50,219,65,236,1,84,184,154,48,106,63,15,56,172,11,249,93,8,123,255,254,3,246,62,130,32,140,151,230,223,53,102,45,171,254,223,247,137,80,248,59,206,141,156,206,127,65,202,54]));
 
@@ -134,7 +136,7 @@ class VaultSchema {
 	rate: Numberu64
 	earlyWithdrawalFee: Numberu64
 	totalObligations: Numberu64
-	totalStaked: Numberu64;
+	totalStaked: Numberu64
 
 	constructor(fields?: {
 		mint: PublicKey,
@@ -205,8 +207,9 @@ export function getVaultData(connection: Connection) {
 		});
 }
 
-export function getStakeData(connection: Connection, staker: PublicKey) {
+export async function getStakeData(connection: Connection, staker: PublicKey) {
 	console.log(`Staker Addr: ${staker.toBase58()}`)
+	let stakerInfoAddr = await findStakeInfoAddress(staker);
 	findStakeInfoAddress(staker).then(
 		r => {
 			console.log(`Staker Info Addr ${r.toBase58()}`)
@@ -227,11 +230,6 @@ export function getStakeData(connection: Connection, staker: PublicKey) {
 
 //------------------------Instructions-----------------------------------------
 //
-
-export class StakeInstruction {
-
-}
-
 export class createStakeInstruction {
 	amount: Numberu64;
 	static schema: Schema = new Map([[createStakeInstruction, {kind: "struct", fields: [["amount", "u64"]]},],]);
@@ -402,15 +400,6 @@ export const signAndSendTransactionInstructions = async (
 	signers.push(feePayer);
 	tx.add(...txInstructions);
 
-	console.log(`TX: ${tx}`);
-
-	console.log(tx.signatures);
-	console.log(tx.feePayer);
-	console.log(tx.recentBlockhash);
-	console.log(tx.lastValidBlockHeight);
-	console.log(tx.nonceInfo);
-	console.log(tx.instructions);
-
 	return await connection.sendTransaction(tx, signers);
 };
 
@@ -486,4 +475,29 @@ export async function getAndCreateUnstakeIx(staker: PublicKey, connection: Conne
 	ixArr.push(ixFinal);
 	let sig = await signAndSendTransactionInstructions(connection, signers, feePayer, ixArr);
 	console.log(sig);
+}
+
+//-----Rewards-------
+
+export function getElapsedDuration(stakeDataTimestamp: number): number {
+	const now = Math.floor((new Date()).getTime() / 1000);
+	return (now - stakeDataTimestamp);
+}
+
+export function getElapsedPeriods(stakeDataTimestamp: number, vaultRewardPeriod: number): number {
+	return getElapsedDuration(stakeDataTimestamp) / vaultRewardPeriod;
+}
+
+export function getRewardPerPeriod(stakeDataTimestamp: number, maxReward: number, vaultRewardPeriod: number): number {
+	return maxReward / (getElapsedPeriods(stakeDataTimestamp, vaultRewardPeriod) / (YEAR / vaultRewardPeriod));
+}
+
+export function getCurrentRewardAmount(stakeData: StakeSchema, vaultData: VaultSchema): number {
+	return getElapsedPeriods(stakeData.timestamp.toNumber(), vaultData.rewardPeriod.toNumber()) * getRewardPerPeriod(stakeData.timestamp.toNumber(), stakeData.maxReward.toNumber(), vaultData.rewardPeriod.toNumber());
+}
+
+export function incrementReward(stakeData: StakeSchema, vaultData: VaultSchema) {
+	let currentRewardAmount = getCurrentRewardAmount(stakeData, vaultData);
+	const rewardPerPeriod = getRewardPerPeriod(stakeData.timestamp.toNumber(), stakeData.maxReward.toNumber(), vaultData.rewardPeriod.toNumber());
+	let interval = setInterval(() => currentRewardAmount++, 1000);
 }
